@@ -12,7 +12,6 @@
 #define LED_GPIO    2 // GPIO pin for the LED
 #define Queue_Size  10
 
-int test = 0;
 static const char *TAG = "SDIO";
 
 
