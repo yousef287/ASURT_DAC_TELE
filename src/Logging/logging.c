@@ -8,8 +8,8 @@
  *             Use POSIX and C standard library functions to work with files:
  */
 
- #include "logging.h"
- #include "..\RTC_Time_Sync\rtc_time_sync.h"
+#include "logging.h"
+#include "..\RTC_Time_Sync\rtc_time_sync.h"
 
 /*
  * ================================================================
@@ -17,19 +17,19 @@
  * ================================================================
  *
  * */
-    sdmmc_card_t *card;                         /* Holds Mounted SD Card infromation*/
-    const char mount_point[] = MOUNT_POINT;     /* Holds the data path of the SD card*/
-    FILE *f = NULL;                             /* File object for SD */
+sdmmc_card_t *card;                     /* Holds Mounted SD Card infromation*/
+const char mount_point[] = MOUNT_POINT; /* Holds the data path of the SD card*/
+FILE *f = NULL;                         /* File object for SD */
 
 /*
-* ================================================================
-* 							File I/O Variables
-* ================================================================
-*
-* */
-    static esp_err_t ret;                           /* Fatfas functions common result code */
-    char *open_file = NULL;                  /* Holds the name of Currently opened file */    
-    uint32_t bytewritten, byteread;			 /* File Write/Read counters */    
+ * ================================================================
+ * 							File I/O Variables
+ * ================================================================
+ *
+ * */
+static esp_err_t ret;           /* Fatfas functions common result code */
+char *open_file = NULL;         /* Holds the name of Currently opened file */
+uint32_t bytewritten, byteread; /* File Write/Read counters */
 
 /*
  * ================================================================
@@ -38,7 +38,7 @@
  *
  * */
 
- /**================================================================
+/**================================================================
  * @Fn				- SDIO_SD_Init
  * @breif			- Initializes SD Cards & prints card Info
  * @param [in]		- None
@@ -57,12 +57,11 @@ esp_err_t SDIO_SD_Init(void)
         .format_if_mount_failed = false,
 #endif // EXAMPLE_FORMAT_IF_MOUNT_FAILED
         .max_files = 5,
-        .allocation_unit_size = 16 * 1024
-    };
+        .allocation_unit_size = 16 * 1024};
 
     // By default, SD card frequency is initialized to SDMMC_FREQ_DEFAULT (20MHz)
     // For setting a specific frequency, use host.max_freq_khz (range 400kHz - 40MHz for SDMMC)
-       sdmmc_host_t host = SDMMC_HOST_DEFAULT();
+    sdmmc_host_t host = SDMMC_HOST_DEFAULT();
 #if SDMMC_SPEED_HS
     host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
 #elif SDMMC_SPEED_UHS_I_SDR50
@@ -75,8 +74,8 @@ esp_err_t SDIO_SD_Init(void)
 #endif
 
     // This initializes the slot without card detect (CD) and write protect (WP) signals.
-     sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
-    
+    sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+
     // Set bus width to use:
 #ifdef SDMMC_BUS_WIDTH_4
     slot_config.width = 4;
@@ -90,7 +89,7 @@ esp_err_t SDIO_SD_Init(void)
 
     ret = esp_vfs_fat_sdmmc_mount(mount_point, &host, &slot_config, &mount_config, &card);
 
-    //Set the log level for the GPIO driver to WARN to reduce Messages
+    // Set the log level for the GPIO driver to WARN to reduce Messages
     esp_log_level_set("gpio", ESP_LOG_WARN);
     esp_vfs_fat_sdcard_unmount(mount_point, card);
 
@@ -98,9 +97,8 @@ esp_err_t SDIO_SD_Init(void)
 
     // Card has been initialized, print its properties
     sdmmc_card_print_info(stdout, card);
-   return ret;
+    return ret;
 }
-
 
 /**================================================================
  * @Fn				- SDIO_SD_DeInit
@@ -110,7 +108,7 @@ esp_err_t SDIO_SD_Init(void)
  * Note				- None
  */
 esp_err_t SDIO_SD_DeInit(void)
-{   
+{
     ret = ESP_OK;
     ret = esp_vfs_fat_sdcard_unmount(mount_point, card);
     return ret;
@@ -130,15 +128,15 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
     ret = ESP_OK;
 
     // Check if another file is already opened
-    if(open_file != NULL)
+    if (open_file != NULL)
     {
-        fclose(f);           //close the previously opened file
-        open_file = NULL;   // Reset the open file name
+        fclose(f);        // close the previously opened file
+        open_file = NULL; // Reset the open file name
     }
     snprintf(file->path, sizeof(file->path), "%s/%s", MOUNT_POINT, file->name);
-    f = fopen(file->path, "w"); 
+    f = fopen(file->path, "w");
 
-    if(f == NULL)
+    if (f == NULL)
     {
         return ESP_FAIL; // Failed to open file for writing
     }
@@ -146,69 +144,67 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
     {
         open_file = file->name; // Assign the name of the opened file
 
-        //Check if file type is .TXT or .CSV
-        if(file->type == TXT)
+        // Check if file type is .TXT or .CSV
+        if (file->type == TXT)
         {
             // Write string to file
             bytewritten = fprintf(f, "%s\n", pTxBuffer->string);
-            if((bytewritten == 0) || ret != ESP_OK)
-			{
+            if ((bytewritten == 0) || ret != ESP_OK)
+            {
                 ret = ESP_ERR_NOT_FINISHED;
-				return ret; // Failed to write to file
-			}
+                return ret; // Failed to write to file
+            }
         }
-        else if(file->type == CSV)
+        else if (file->type == CSV)
         {
             // Write CSV header to file
-            fprintf(f,"Timestamp,Label,"
-                    "SUS_1,SUS_2,SUS_3,SUS_4,"
-                    "PRESSURE_1,PRESSURE_2,"
-                    "RPM_FL,RPM_FR,RPM_RL,RPM_RR,"
-                    "ENC_ANGLE,"
-                    "IMU_X,IMU_Y,IMU_Z\n");
+            fprintf(f, "Timestamp,Label,"
+                       "SUS_1,SUS_2,SUS_3,SUS_4,"
+                       "PRESSURE_1,PRESSURE_2,"
+                       "RPM_FL,RPM_FR,RPM_RL,RPM_RR,"
+                       "ENC_ANGLE,"
+                       "IMU_X,IMU_Y,IMU_Z\n");
 
             // Write formatted data to file
-            bytewritten = fprintf(f,"%s,%s,"
-                                    "%u,%u,%u,%u,"
-                                    "%u,%u,"
-                                    "%u,%u,%u,%u,"
-                                    "%u,"
-                                    "%u,%u,%u\n",
+            bytewritten = fprintf(f, "%s,%s,"
+                                     "%u,%u,%u,%u,"
+                                     "%u,%u,"
+                                     "%u,%u,%u,%u,"
+                                     "%u,"
+                                     "%u,%u,%u\n",
 
-                                    pTxBuffer->timestamp,
-                                    pTxBuffer->string,
+                                  pTxBuffer->timestamp,
+                                  pTxBuffer->string,
 
-                                    pTxBuffer->adc.SUS_1,
-                                    pTxBuffer->adc.SUS_2,
-                                    pTxBuffer->adc.SUS_3,
-                                    pTxBuffer->adc.SUS_4,
-                                    pTxBuffer->adc.PRESSURE_1,
-                                    pTxBuffer->adc.PRESSURE_2,
+                                  pTxBuffer->adc.SUS_1,
+                                  pTxBuffer->adc.SUS_2,
+                                  pTxBuffer->adc.SUS_3,
+                                  pTxBuffer->adc.SUS_4,
+                                  pTxBuffer->adc.PRESSURE_1,
+                                  pTxBuffer->adc.PRESSURE_2,
 
-                                    pTxBuffer->prox_encoder.RPM_front_left,
-                                    pTxBuffer->prox_encoder.RPM_front_right,
-                                    pTxBuffer->prox_encoder.RPM_rear_left,
-                                    pTxBuffer->prox_encoder.RPM_rear_right,
-                                    pTxBuffer->prox_encoder.ENCODER_angle,
+                                  pTxBuffer->prox_encoder.RPM_front_left,
+                                  pTxBuffer->prox_encoder.RPM_front_right,
+                                  pTxBuffer->prox_encoder.RPM_rear_left,
+                                  pTxBuffer->prox_encoder.RPM_rear_right,
+                                  pTxBuffer->prox_encoder.ENCODER_angle,
 
-                                    pTxBuffer->imu.x,
-                                    pTxBuffer->imu.y,
-                                    pTxBuffer->imu.z);
+                                  pTxBuffer->imu.x,
+                                  pTxBuffer->imu.y,
+                                  pTxBuffer->imu.z);
 
-            if((bytewritten == 0) || ret != ESP_OK)
-			{
+            if ((bytewritten == 0) || ret != ESP_OK)
+            {
                 ret = ESP_ERR_NOT_FINISHED;
-				return ret; // Failed to write to file
-			}
+                return ret; // Failed to write to file
+            }
         }
-       
     }
-    
-    fclose(f); // Close the file after writing
+
+    fclose(f);        // Close the file after writing
     open_file = NULL; // Reset the open file name
     return ret;
 }
-
 
 /**================================================================
  * @Fn				- SDIO_SD_Add_Data
@@ -224,18 +220,18 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
 esp_err_t SDIO_SD_Add_Data(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer)
 {
     ret = ESP_OK;
-    if(open_file != NULL)
+    if (open_file != NULL)
     {
-        fclose(f);           //close the previously opened file
-        open_file = NULL;   // Reset the open file name
+        fclose(f);        // close the previously opened file
+        open_file = NULL; // Reset the open file name
     }
 
     struct stat st;
-    if(stat(file->path, &st) == 0) //Check if the files exists
+    if (stat(file->path, &st) == 0) // Check if the files exists
     {
         f = fopen(file->path, "a");
 
-        if(f == NULL)
+        if (f == NULL)
         {
             ret = ESP_FAIL; // Failed to open file for writing
         }
@@ -243,54 +239,53 @@ esp_err_t SDIO_SD_Add_Data(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer)
         {
             open_file = file->name; // Assign the name of the opened file
 
-            //Check if file type is .TXT or .CSV
-        if(file->type == TXT)
-        {
-            // Write string to file
-            bytewritten = fprintf(f, "%s\n", pTxBuffer->string);
-            if((bytewritten == 0) || ret != ESP_OK)
-			{
-                ret = ESP_ERR_NOT_FINISHED;
-				return ret; // Failed to write to file
-			}
-        }
-        else if(file->type == CSV)
-        {
-            // Write formatted data to file
-            bytewritten = fprintf(f,"%s,%s,"
-                                    "%u,%u,%u,%u,"
-                                    "%u,%u,"
-                                    "%u,%u,%u,%u,"
-                                    "%u,"
-                                    "%u,%u,%u\n",
+            // Check if file type is .TXT or .CSV
+            if (file->type == TXT)
+            {
+                // Write string to file
+                bytewritten = fprintf(f, "%s\n", pTxBuffer->string);
+                if ((bytewritten == 0) || ret != ESP_OK)
+                {
+                    ret = ESP_ERR_NOT_FINISHED;
+                    return ret; // Failed to write to file
+                }
+            }
+            else if (file->type == CSV)
+            {
+                // Write formatted data to file
+                bytewritten = fprintf(f, "%s,%s,"
+                                         "%u,%u,%u,%u,"
+                                         "%u,%u,"
+                                         "%u,%u,%u,%u,"
+                                         "%u,"
+                                         "%u,%u,%u\n",
 
-                                    pTxBuffer->timestamp,
-                                    pTxBuffer->string,
+                                      pTxBuffer->timestamp,
+                                      pTxBuffer->string,
 
-                                    pTxBuffer->adc.SUS_1,
-                                    pTxBuffer->adc.SUS_2,
-                                    pTxBuffer->adc.SUS_3,
-                                    pTxBuffer->adc.SUS_4,
-                                    pTxBuffer->adc.PRESSURE_1,
-                                    pTxBuffer->adc.PRESSURE_2,
+                                      pTxBuffer->adc.SUS_1,
+                                      pTxBuffer->adc.SUS_2,
+                                      pTxBuffer->adc.SUS_3,
+                                      pTxBuffer->adc.SUS_4,
+                                      pTxBuffer->adc.PRESSURE_1,
+                                      pTxBuffer->adc.PRESSURE_2,
 
-                                    pTxBuffer->prox_encoder.RPM_front_left,
-                                    pTxBuffer->prox_encoder.RPM_front_right,
-                                    pTxBuffer->prox_encoder.RPM_rear_left,
-                                    pTxBuffer->prox_encoder.RPM_rear_right,
-                                    pTxBuffer->prox_encoder.ENCODER_angle,
+                                      pTxBuffer->prox_encoder.RPM_front_left,
+                                      pTxBuffer->prox_encoder.RPM_front_right,
+                                      pTxBuffer->prox_encoder.RPM_rear_left,
+                                      pTxBuffer->prox_encoder.RPM_rear_right,
+                                      pTxBuffer->prox_encoder.ENCODER_angle,
 
-                                    pTxBuffer->imu.x,
-                                    pTxBuffer->imu.y,
-                                    pTxBuffer->imu.z);
+                                      pTxBuffer->imu.x,
+                                      pTxBuffer->imu.y,
+                                      pTxBuffer->imu.z);
 
-            if((bytewritten == 0) || ret != ESP_OK)
-			{
-                ret = ESP_ERR_NOT_FINISHED;
-				return ret; // Failed to write to file
-			}
-        }
-
+                if ((bytewritten == 0) || ret != ESP_OK)
+                {
+                    ret = ESP_ERR_NOT_FINISHED;
+                    return ret; // Failed to write to file
+                }
+            }
         }
     }
     else
@@ -310,19 +305,19 @@ esp_err_t SDIO_SD_Add_Data(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer)
  */
 esp_err_t SDIO_SD_Read_Data(SDIO_FileConfig *file)
 {
-    if(open_file != NULL)
+    if (open_file != NULL)
     {
-        fclose(f);           //close the previously opened file
-        open_file = NULL;   // Reset the open file name
+        fclose(f);        // close the previously opened file
+        open_file = NULL; // Reset the open file name
     }
     snprintf(file->path, sizeof(file->path), "%s/%s", MOUNT_POINT, file->name);
 
     struct stat st;
-    if(stat(file->path, &st) == 0) //Check if the files exists
+    if (stat(file->path, &st) == 0) // Check if the files exists
     {
         f = fopen(file->path, "r");
 
-        if(f == NULL)
+        if (f == NULL)
         {
             ret = ESP_FAIL; // Failed to open file for writing
         }
@@ -330,25 +325,25 @@ esp_err_t SDIO_SD_Read_Data(SDIO_FileConfig *file)
         {
             open_file = file->name; // Assign the name of the opened file
             char line[EXAMPLE_MAX_CHAR_SIZE];
-            while(fgets(line, sizeof(line), f))
+            while (fgets(line, sizeof(line), f))
             {
                 // Strip newline character if present
-                /* 
+                /*
                 char *pos = strchr(line, '\n');
                 if (pos) *pos = '\0';
                  */
                 printf("%s", line);
             }
         }
-        
-        fclose(f); // Close the file after writing
+
+        fclose(f);        // Close the file after writing
         open_file = NULL; // Reset the open file name
     }
     else
     {
         ret = ESP_FAIL; // File does not exist
     }
-  
+
     return ret;
 }
 
@@ -360,26 +355,31 @@ esp_err_t SDIO_SD_Read_Data(SDIO_FileConfig *file)
  * Note				- Required to after last use of SDIO_SD_Add_Data
  */
 esp_err_t SDIO_SD_Close_file(void)
-{   
+{
     ret = ESP_OK;
-     // Close the file if it is open
-    if(fclose(f) == 0)
+    // Close the file if it is open
+    if (fclose(f) == 0)
         open_file = NULL; // Reset the open file name
     else
         ret = ESP_FAIL; // Failed to close file
-    return ret; 
-}   
+    return ret;
+}
 
-
+/**================================================================
+ * @Fn				- SDIO_SD_LOG_CAN_Message
+ * @breif			- Creates New .txt File Called SDIO_CAN_txt and last 10 received msgs
+ * @param [in]		- rx_msg: pointer to Buffer storing Received Msg
+ * @retval			- Value indicates the States of SD Card (Anything other that ESP_OK is an Error)
+ * Note				- 
+ */
 esp_err_t SDIO_SD_LOG_CAN_Message(twai_message_t *rx_msg)
 {
 
-     //Debug variables
-     uint8_t Logged_msgs = 0;
+    // Debug variables
+    uint8_t Logged_msgs = 0;
     uint32_t alerts = 0;
     twai_status_info_t s;
-    
-    
+
     SDIO_FileConfig SDIO_CAN_txt;
     SDIO_TxBuffer buffer;
     static const char *TAG = "SDIO_CAN_DEBUG";
@@ -388,72 +388,72 @@ esp_err_t SDIO_SD_LOG_CAN_Message(twai_message_t *rx_msg)
     SDIO_CAN_txt.name = "SDIO_CAN.TXT";
     SDIO_CAN_txt.type = TXT;
     buffer.string = "CAN Message Log\r\n";
-    if(SDIO_SD_Create_Write_File(&SDIO_CAN_txt, &buffer) == ESP_OK)
+    if (SDIO_SD_Create_Write_File(&SDIO_CAN_txt, &buffer) == ESP_OK)
     {
         ESP_LOGI(TAG, "SDIO_CAN.txt Created Successfully!");
     }
 
-    char sd_write_buffer[180];  // Adjust size as needed
+    char sd_write_buffer[180]; // Adjust size as needed
 
+    // Process rx_msg->identifier, rx_msg->data, etc.
+
+    /*  printf("ID = 0x%03lX\n",rx_msg->identifier);
+    printf("Extended? %s\n", rx_msg->extd ? "Yes" : "No");
+    printf("RTR? %s\n", rx_msg->rtr ? "Yes" : "No");
+    printf("DLC = %d\n", rx_msg->data_length_code);
+    for (int i = 0; i < rx_msg->data_length_code; i++) {
+        printf("byte[%d] = 0x%02X\n", i, rx_msg->data[i]);
+    } */
+
+    for (uint8_t i = 0; i < 10; i++)
+    {
         if (twai_receive(rx_msg, pdMS_TO_TICKS(1000)) == ESP_OK)
         {
-            // Process rx_msg->identifier, rx_msg->data, etc.
-
-           /*  printf("ID = 0x%03lX\n",rx_msg->identifier);
-            printf("Extended? %s\n", rx_msg->extd ? "Yes" : "No");
-            printf("RTR? %s\n", rx_msg->rtr ? "Yes" : "No");
-            printf("DLC = %d\n", rx_msg->data_length_code);
-            for (int i = 0; i < rx_msg->data_length_code; i++) {
-                printf("byte[%d] = 0x%02X\n", i, rx_msg->data[i]);
-            } */
-        
-            for(uint8_t i = 0; i < 10; i++)
-            {   
-                if (Time_Sync_get_rtc_time_str(time_buffer, sizeof(time_buffer)) != true)
-                    {
-                        ESP_LOGE("RTC","Failed to get time.");
-                        strcpy(time_buffer, "XXXXXXXX");
-                    }
-                
-                // Format the message into the string buffer
-                snprintf(sd_write_buffer, sizeof(sd_write_buffer),
-                        "TimeStamp: %s ID: 0x%03lX Data[0]: 0x%02X Data[1]: 0x%02X Data[2]: 0x%02X Data[3]: 0x%02X "
-                        "Data[4]: 0x%02X Data[5]: 0x%02X Data[6]: 0x%02X Data[7]: 0x%02X\r",
-                         time_buffer, rx_msg->identifier,
-                        rx_msg->data[0], rx_msg->data[1], rx_msg->data[2], rx_msg->data[3],
-                        rx_msg->data[4], rx_msg->data[5], rx_msg->data[6], rx_msg->data[7]);
-
-                // Now write this to your SDIO buffer
-                buffer.string = sd_write_buffer;
-
-                if (SDIO_SD_Add_Data(&SDIO_CAN_txt, &buffer) == ESP_OK) {
-                    Logged_msgs++;
-                }
-                
-            }
-
-            if(SDIO_SD_Close_file() == ESP_OK)
+            if (Time_Sync_get_rtc_time_str(time_buffer, sizeof(time_buffer)) != true)
             {
-                ESP_LOGI(TAG, "File Closed Successfully! ... Messages Logged: %u", Logged_msgs);
+                ESP_LOGE("RTC", "Failed to get time.");
+                strcpy(time_buffer, "XXXXXXXX");
             }
-            SDIO_SD_Read_Data(&SDIO_CAN_txt);
-            vTaskDelay(pdMS_TO_TICKS(1000));
+
+            // Format the message into the string buffer
+            snprintf(sd_write_buffer, sizeof(sd_write_buffer),
+                     "TimeStamp: %s ID: 0x%03lX Data[0]: 0x%02X Data[1]: 0x%02X Data[2]: 0x%02X Data[3]: 0x%02X "
+                     "Data[4]: 0x%02X Data[5]: 0x%02X Data[6]: 0x%02X Data[7]: 0x%02X\r",
+                     time_buffer, rx_msg->identifier,
+                     rx_msg->data[0], rx_msg->data[1], rx_msg->data[2], rx_msg->data[3],
+                     rx_msg->data[4], rx_msg->data[5], rx_msg->data[6], rx_msg->data[7]);
+
+            // Now write this to your SDIO buffer
+            buffer.string = sd_write_buffer;
+
+            if (SDIO_SD_Add_Data(&SDIO_CAN_txt, &buffer) == ESP_OK)
+            {
+                Logged_msgs++;
+            }
         }
         else
         {
             ESP_LOGI("CAN", "No message received within the timeout period");
             ret = twai_read_alerts(&alerts, 0);
-            if (ret == ESP_OK) 
+            if (ret == ESP_OK)
             {
                 ESP_LOGI("CAN", "TWAI alert: %08ld", alerts);
             }
             twai_get_status_info(&s);
-            ESP_LOGI("CAN", "RX errors: %ld, bus errors: %ld, RX queue full: %ld", 
-                        s.rx_error_counter, s.bus_error_count, s.rx_missed_count);    
-            
+            ESP_LOGI("CAN", "RX errors: %ld, bus errors: %ld, RX queue full: %ld",
+                     s.rx_error_counter, s.bus_error_count, s.rx_missed_count);
+
             return ESP_FAIL; // No message received
         }
+    }
 
-        return ESP_OK;
+    if (SDIO_SD_Close_file() == ESP_OK)
+    {
+        ESP_LOGI(TAG, "File Closed Successfully! ... Messages Logged: %u", Logged_msgs);
+    }
 
+    SDIO_SD_Read_Data(&SDIO_CAN_txt);
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
+    return ESP_OK;
 }
