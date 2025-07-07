@@ -9,6 +9,7 @@
  */
 
  #include "logging.h"
+ #include "..\RTC_Time_Sync\rtc_time_sync.h"
 
 /*
  * ================================================================
@@ -26,7 +27,7 @@
 * ================================================================
 *
 * */
-    esp_err_t ret;                           /* Fatfas functions common result code */
+    static esp_err_t ret;                           /* Fatfas functions common result code */
     char *open_file = NULL;                  /* Holds the name of Currently opened file */    
     uint32_t bytewritten, byteread;			 /* File Write/Read counters */    
 
@@ -370,26 +371,29 @@ esp_err_t SDIO_SD_Close_file(void)
 }   
 
 
-esp_err_t SDIO_SD_LOG_CAN_Message(SDIO_FileConfig *file, twai_message_t *rx_msg)
+esp_err_t SDIO_SD_LOG_CAN_Message(twai_message_t *rx_msg)
 {
 
      //Debug variables
+     uint8_t Logged_msgs = 0;
     uint32_t alerts = 0;
     twai_status_info_t s;
+    
     
     SDIO_FileConfig SDIO_CAN_txt;
     SDIO_TxBuffer buffer;
     static const char *TAG = "SDIO_CAN_DEBUG";
-    
+    char time_buffer[32];
+
     SDIO_CAN_txt.name = "SDIO_CAN.TXT";
     SDIO_CAN_txt.type = TXT;
     buffer.string = "CAN Message Log\r\n";
     if(SDIO_SD_Create_Write_File(&SDIO_CAN_txt, &buffer) == ESP_OK)
     {
-        ESP_LOGI(TAG, "SDIO_CAN.txt Written Successfully!");
+        ESP_LOGI(TAG, "SDIO_CAN.txt Created Successfully!");
     }
 
-    char sd_write_buffer[128];  // Adjust size as needed
+    char sd_write_buffer[180];  // Adjust size as needed
 
         if (twai_receive(rx_msg, pdMS_TO_TICKS(1000)) == ESP_OK)
         {
@@ -404,13 +408,18 @@ esp_err_t SDIO_SD_LOG_CAN_Message(SDIO_FileConfig *file, twai_message_t *rx_msg)
             } */
         
             for(uint8_t i = 0; i < 10; i++)
-            {
+            {   
+                if (Time_Sync_get_rtc_time_str(time_buffer, sizeof(time_buffer)) != true)
+                    {
+                        ESP_LOGE("RTC","Failed to get time.");
+                        strcpy(time_buffer, "XXXXXXXX");
+                    }
                 
                 // Format the message into the string buffer
                 snprintf(sd_write_buffer, sizeof(sd_write_buffer),
-                        "ID: 0x%03lX Data[0]: 0x%02X Data[1]: 0x%02X Data[2]: 0x%02X Data[3]: 0x%02X "
+                        "TimeStamp: %s ID: 0x%03lX Data[0]: 0x%02X Data[1]: 0x%02X Data[2]: 0x%02X Data[3]: 0x%02X "
                         "Data[4]: 0x%02X Data[5]: 0x%02X Data[6]: 0x%02X Data[7]: 0x%02X\r",
-                        rx_msg->identifier,
+                         time_buffer, rx_msg->identifier,
                         rx_msg->data[0], rx_msg->data[1], rx_msg->data[2], rx_msg->data[3],
                         rx_msg->data[4], rx_msg->data[5], rx_msg->data[6], rx_msg->data[7]);
 
@@ -418,19 +427,17 @@ esp_err_t SDIO_SD_LOG_CAN_Message(SDIO_FileConfig *file, twai_message_t *rx_msg)
                 buffer.string = sd_write_buffer;
 
                 if (SDIO_SD_Add_Data(&SDIO_CAN_txt, &buffer) == ESP_OK) {
-                    ESP_LOGI(TAG, "CAN message written to SD card.");
+                    Logged_msgs++;
                 }
                 
             }
 
             if(SDIO_SD_Close_file() == ESP_OK)
             {
-                ESP_LOGI(TAG, "File Closed Successfully!");
+                ESP_LOGI(TAG, "File Closed Successfully! ... Messages Logged: %u", Logged_msgs);
             }
             SDIO_SD_Read_Data(&SDIO_CAN_txt);
-            
-        
-
+            vTaskDelay(pdMS_TO_TICKS(1000));
         }
         else
         {

@@ -9,11 +9,10 @@
 #include "driver/twai.h"
 #include "RTC_Time_Sync/rtc_time_sync.h"
 
-#define LED_GPIO    2 // GPIO pin for the LED
-#define Queue_Size  10
+#define LED_GPIO 2 // GPIO pin for the LED
+#define Queue_Size 10
 
 static const char *TAG = "SDIO";
-
 
 /*
  * ================================================================
@@ -71,6 +70,116 @@ void TELE_Log_Task_init(void *pvParameters);
 
 void app_main()
 {
+    //==========================================SDIO Implementation (DONE)===========================================
+    esp_err_t ret;
+    ret = SDIO_SD_Init();
+
+    if (ret != ESP_OK)
+    {
+        if (ret == ESP_FAIL)
+        {
+            ESP_LOGE(TAG, "Failed to mount filesystem. "
+                          "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
+        }
+        else
+        {
+            ESP_LOGE(TAG, "Failed to initialize the card (%s). "
+                          "Make sure SD card lines have pull-up resistors in place.",
+                     esp_err_to_name(ret));
+        }
+        return;
+    }
+    ESP_LOGI(TAG, "Filesystem mounted");
+
+    /*
+           SDIO_txt.name = "SDIO.TXT";
+           SDIO_txt.type = TXT;
+           buffer.string = "Hello World line 1\r\nHello World line 2\r\nHello World line 3\r";
+           if(SDIO_SD_Create_Write_File(&SDIO_txt, &buffer) == ESP_OK)
+           {
+               ESP_LOGI(TAG, "SDIO.TXT Written Successfully!");
+           }
+
+
+           SDIO_test.name = "SDIO.CSV";
+           SDIO_test.type = CSV;
+           buffer.string = "LOG1";
+           buffer.timestamp = "2023-10-01 12:00:00";
+           buffer.adc.SUS_1= 15;
+           buffer.adc.SUS_2 = 20;
+           buffer.adc.SUS_3 = 25;
+           buffer.adc.SUS_4 = 30;
+           buffer.adc.PRESSURE_1 = 10;
+           buffer.adc.PRESSURE_2 = 15;
+           buffer.prox_encoder.RPM_front_left = 1000;
+           buffer.prox_encoder.RPM_front_right = 1100;
+           buffer.prox_encoder.RPM_rear_left = 1200;
+           buffer.prox_encoder.RPM_rear_right = 1300;
+           buffer.prox_encoder.ENCODER_angle = 45;
+           buffer.imu.x = 100;
+           buffer.imu.y = 200;
+           buffer.imu.z = 300;
+
+           if(SDIO_SD_Create_Write_File(&SDIO_test, &buffer) == ESP_OK)
+           {
+               ESP_LOGI(TAG, "SDIO.CSV Written Successfully!");
+           }
+
+           SDIO_SD_Read_Data(&SDIO_txt);
+           SDIO_SD_Read_Data(&SDIO_test);
+           //Append data to the existing files
+           buffer.string = "Hello World line 4\r\nHello World line 5\r\n";
+           if(SDIO_SD_Add_Data(&SDIO_txt, &buffer) == ESP_OK)
+           {
+               ESP_LOGI(TAG, "SDIO.TXT Appended Successfully!");
+           }
+
+           buffer.string = "LOG2";
+           buffer.timestamp = "2023-10-01 12:00:01";  // 1 second later
+
+           buffer.adc.SUS_1 = 18;
+           buffer.adc.SUS_2 = 22;
+           buffer.adc.SUS_3 = 28;
+           buffer.adc.SUS_4 = 33;
+
+           buffer.adc.PRESSURE_1 = 12;
+           buffer.adc.PRESSURE_2 = 17;
+
+           buffer.prox_encoder.RPM_front_left  = 1020;
+           buffer.prox_encoder.RPM_front_right = 1120;
+           buffer.prox_encoder.RPM_rear_left   = 1220;
+           buffer.prox_encoder.RPM_rear_right  = 1320;
+           buffer.prox_encoder.ENCODER_angle   = 47;
+
+           buffer.imu.x = 110;
+           buffer.imu.y = 210;
+           buffer.imu.z = 310;
+
+           if(SDIO_SD_Add_Data(&SDIO_test, &buffer) == ESP_OK)
+           {
+               ESP_LOGI(TAG, "SDIO.CSV Appended Successfully!");
+           }
+
+           if(SDIO_SD_Close_file() == ESP_OK)
+           {
+               ESP_LOGI(TAG, "File Closed Successfully!");
+           }
+
+
+           // Read the files again to verify the appended data
+           SDIO_SD_Read_Data(&SDIO_txt);
+           SDIO_SD_Read_Data(&SDIO_test);
+
+           twai_message_t rx_msg;
+           SDIO_SD_LOG_CAN_Message(&rx_msg);
+
+           // All done, unmount partition and disable SDMMC peripheral
+           if(SDIO_SD_DeInit() == ESP_OK)
+            ESP_LOGI(TAG, "Card unmounted successfully");
+
+
+        */
+
     //==========================================WIFI Implementation (DONE)===========================================
     ESP_ERROR_CHECK(wifi_init("Fathy WIFI", "Min@F@thy.2004$$"));
 
@@ -88,13 +197,11 @@ void app_main()
         ESP_LOGE("CAN", "successfully installed TWAI driver");
     }
 
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
     if (twai_start() == ESP_OK)
     {
         ESP_LOGE("CAN", "successfully started TWAI driver");
     }
 
-    esp_err_t ret;
     /*
          twai_message_t tx_msg = {
             .flags = TWAI_MSG_FLAG_NONE,
@@ -104,6 +211,9 @@ void app_main()
         };
         // 3. Transmit a message
         twai_transmit(&tx_msg, pdMS_TO_TICKS(1000));  */
+
+    //==========================================RTC_Time_Sync Implementation (IN Progress)===========================================
+    Time_Sync_obtain_time();
 
     //==========================================RTOS Implementation (Working)===========================================
 
@@ -120,7 +230,6 @@ void app_main()
     else // If there is  queue created
     {
         ESP_LOGI("RTOS", "Structure Queue Created Successfully\r\n");
-        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
     if (CAN_SDIO_queue_Handler == NULL) // If there is no queue created
@@ -131,162 +240,38 @@ void app_main()
     else // If there is  queue created
     {
         ESP_LOGI("RTOS", "Structure Queue Created Successfully");
-        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
     //=============Define Tasks=================//
     xTaskCreate((TaskFunction_t)CAN_Receive_Task_init, "CAN_Receive_Task", 4096, NULL, (UBaseType_t)4, &CAN_Receive_TaskHandler);
-    //xTaskCreate((TaskFunction_t)SDIO_Log_Task_init, "SDIO_Log_Task", 1024, NULL, (UBaseType_t)4, &SDIO_Log_TaskHandler);
-    //xTaskCreate((TaskFunction_t)TELE_Log_Task_init, "TELE_Log_Task", 1024, NULL, (UBaseType_t)4, &TELE_Log_TaskHandler);
+    xTaskCreate((TaskFunction_t)SDIO_Log_Task_init, "SDIO_Log_Task", 4096, NULL, (UBaseType_t)4, &SDIO_Log_TaskHandler);
+    // xTaskCreate((TaskFunction_t)TELE_Log_Task_init, "TELE_Log_Task", 1024, NULL, (UBaseType_t)4, &TELE_Log_TaskHandler);
 
-    //==========================================SDIO Implementation (DONE)===========================================
-    /*
-       ret = SDIO_SD_Init();
-
-        if (ret != ESP_OK) {
-           if (ret == ESP_FAIL) {
-               ESP_LOGE(TAG, "Failed to mount filesystem. "
-                        "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
-           } else {
-               ESP_LOGE(TAG, "Failed to initialize the card (%s). "
-                        "Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
-           }
-           return;
-       }
-       ESP_LOGI(TAG, "Filesystem mounted");
-
-
-       SDIO_txt.name = "SDIO.TXT";
-       SDIO_txt.type = TXT;
-       buffer.string = "Hello World line 1\r\nHello World line 2\r\nHello World line 3\r";
-       if(SDIO_SD_Create_Write_File(&SDIO_txt, &buffer) == ESP_OK)
-       {
-           ESP_LOGI(TAG, "SDIO.TXT Written Successfully!");
-       }
-
-
-       SDIO_test.name = "SDIO.CSV";
-       SDIO_test.type = CSV;
-       buffer.string = "LOG1";
-       buffer.timestamp = "2023-10-01 12:00:00";
-       buffer.adc.SUS_1= 15;
-       buffer.adc.SUS_2 = 20;
-       buffer.adc.SUS_3 = 25;
-       buffer.adc.SUS_4 = 30;
-       buffer.adc.PRESSURE_1 = 10;
-       buffer.adc.PRESSURE_2 = 15;
-       buffer.prox_encoder.RPM_front_left = 1000;
-       buffer.prox_encoder.RPM_front_right = 1100;
-       buffer.prox_encoder.RPM_rear_left = 1200;
-       buffer.prox_encoder.RPM_rear_right = 1300;
-       buffer.prox_encoder.ENCODER_angle = 45;
-       buffer.imu.x = 100;
-       buffer.imu.y = 200;
-       buffer.imu.z = 300;
-
-       if(SDIO_SD_Create_Write_File(&SDIO_test, &buffer) == ESP_OK)
-       {
-           ESP_LOGI(TAG, "SDIO.CSV Written Successfully!");
-       }
-
-       SDIO_SD_Read_Data(&SDIO_txt);
-       SDIO_SD_Read_Data(&SDIO_test);
-       //Append data to the existing files
-       buffer.string = "Hello World line 4\r\nHello World line 5\r\n";
-       if(SDIO_SD_Add_Data(&SDIO_txt, &buffer) == ESP_OK)
-       {
-           ESP_LOGI(TAG, "SDIO.TXT Appended Successfully!");
-       }
-
-       buffer.string = "LOG2";
-       buffer.timestamp = "2023-10-01 12:00:01";  // 1 second later
-
-       buffer.adc.SUS_1 = 18;
-       buffer.adc.SUS_2 = 22;
-       buffer.adc.SUS_3 = 28;
-       buffer.adc.SUS_4 = 33;
-
-       buffer.adc.PRESSURE_1 = 12;
-       buffer.adc.PRESSURE_2 = 17;
-
-       buffer.prox_encoder.RPM_front_left  = 1020;
-       buffer.prox_encoder.RPM_front_right = 1120;
-       buffer.prox_encoder.RPM_rear_left   = 1220;
-       buffer.prox_encoder.RPM_rear_right  = 1320;
-       buffer.prox_encoder.ENCODER_angle   = 47;
-
-       buffer.imu.x = 110;
-       buffer.imu.y = 210;
-       buffer.imu.z = 310;
-
-       if(SDIO_SD_Add_Data(&SDIO_test, &buffer) == ESP_OK)
-       {
-           ESP_LOGI(TAG, "SDIO.CSV Appended Successfully!");
-       }
-
-       if(SDIO_SD_Close_file() == ESP_OK)
-       {
-           ESP_LOGI(TAG, "File Closed Successfully!");
-       }
-
-
-       // Read the files again to verify the appended data
-       SDIO_SD_Read_Data(&SDIO_txt);
-       SDIO_SD_Read_Data(&SDIO_test);
-
-       twai_message_t rx_msg;
-       SDIO_SD_LOG_CAN_Message(&SDIO_test, &rx_msg);
-
-       // All done, unmount partition and disable SDMMC peripheral
-       if(SDIO_SD_DeInit() == ESP_OK)
-        ESP_LOGI(TAG, "Card unmounted successfully");
-
-
-    */
-    //==========================================RTC_Time_Sync Implementation (IN Progress)===========================================
-    Time_Sync_obtain_time();
-    char time_buffer[32];
     while (1)
     {
-        /* ESP_LOGI("ESP Check", "I am Alive :)");
-        vTaskDelay(1000 / portTICK_PERIOD_MS);     */
+        /*
+                char time_buffer[32];
+                if (Time_Sync_get_rtc_time_str(time_buffer, sizeof(time_buffer)))
+                {
+                    printf("Current time: %s\n", time_buffer);
+                }
+                else
+                {
+                    printf("Failed to get time.\n");
+                }
 
-        if (Time_Sync_get_rtc_time_str(time_buffer, sizeof(time_buffer)))
-        {
-            printf("Current time: %s\n", time_buffer);
-        }
-        else
-        {
-            printf("Failed to get time.\n");
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(1000));
-
-        /*   twai_message_t tx_msg = {
-        .flags = TWAI_MSG_FLAG_NONE,
-        .identifier = 0x123,
-        .data_length_code = 8,
-        .data = {1,2,3,4,5,6,7,8}
-        };
-        // 3. Transmit a message
-
-
-        esp_err_t tx_ret = twai_transmit(&tx_msg, pdMS_TO_TICKS(1000));
-         if (tx_ret != ESP_OK) {
-        ESP_LOGE(TAG, "Transmit failed: %s", esp_err_to_name(tx_ret));
-        }
-        */
+                vTaskDelay(pdMS_TO_TICKS(1000));
+         */
     }
 }
 
-void CAN_Receive_Task_init(void *pvParameters) //DONE
+void CAN_Receive_Task_init(void *pvParameters) // DONE
 {
     const char *TAG = "CAN_Receive_Task";
     twai_message_t rx_msg;
     esp_err_t ret;
     uint32_t alerts = 0;
     twai_status_info_t s;
-    twai_message_t buffer;
     ESP_LOGI("CAN_Receive_Task", "CAN IS WORKING");
     while (1)
     {
@@ -304,42 +289,51 @@ void CAN_Receive_Task_init(void *pvParameters) //DONE
 
             // Format the message into the string buffer
             if (xQueueSend(CAN_TELE_queue_Handler, &rx_msg, (TickType_t)10) != pdPASS)
-                ESP_LOGE(TAG, "Error ! - Telemetry CAN Queue IS FULL !!");
-            
+            {
+                // ESP_LOGE(TAG, "Error ! - Telemetry CAN Queue IS FULL !!");
+                // raise FLAG
+            }
+
             if (xQueueSend(CAN_SDIO_queue_Handler, &rx_msg, (TickType_t)10) != pdPASS)
             {
-                ESP_LOGE(TAG, "Error ! - SDIO Logging CAN Queue IS FULL !!");
+                // RAISE Flag
             }
-                
         }
         else
         {
-            ESP_LOGI("CAN", "No message received within the timeout period");
+            ESP_LOGI(TAG, "No message received within the timeout period");
             ret = twai_read_alerts(&alerts, 0);
             if (ret == ESP_OK)
             {
-                ESP_LOGI("CAN", "TWAI alert: %08ld", alerts);
+                ESP_LOGI(TAG, "TWAI alert: %08ld", alerts);
             }
             twai_get_status_info(&s);
-            ESP_LOGI("CAN", "RX errors: %ld, bus errors: %ld, RX queue full: %ld",
+            ESP_LOGI(TAG, "RX errors: %ld, bus errors: %ld, RX queue full: %ld",
                      s.rx_error_counter, s.bus_error_count, s.rx_missed_count);
-
         }
-        vTaskDelay(1);
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
-void SDIO_Log_Task_init(void *pvParameters)
+void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with sensor format
 {
     const char *TAG = "SDIO_Log_Task";
+    ESP_LOGI(TAG, "SDO_LOG IS WORKING");
+    twai_message_t buffer;
     while (1)
     {
-        ESP_LOGI(TAG, "SDO_LOG IS WORKING");
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        uint8_t Message_nm = uxQueueMessagesWaiting(CAN_SDIO_queue_Handler);
+        for (uint8_t i = 0; i < Message_nm; i++)
+        {
+            if (xQueueReceive(CAN_TELE_queue_Handler, &buffer, (TickType_t)10))
+            {
+                SDIO_SD_LOG_CAN_Message(&buffer);
+            }
+        }
     }
 }
 void TELE_Log_Task_init(void *pvParameters)
 {
-     const char *TAG = "TELE_Log_Task";
+    const char *TAG = "TELE_Log_Task";
     while (1)
     {
         ESP_LOGI(TAG, "TELE_LOG IS WORKING");
