@@ -279,7 +279,7 @@ void app_main()
     }
 }
 
-void CAN_Receive_Task_init(void *pvParameters)
+void CAN_Receive_Task_init(void *pvParameters) //DONE
 {
     const char *TAG = "CAN_Receive_Task";
     twai_message_t rx_msg;
@@ -304,25 +304,13 @@ void CAN_Receive_Task_init(void *pvParameters)
 
             // Format the message into the string buffer
             if (xQueueSend(CAN_TELE_queue_Handler, &rx_msg, (TickType_t)10) != pdPASS)
+                ESP_LOGE(TAG, "Error ! - Telemetry CAN Queue IS FULL !!");
+            
+            if (xQueueSend(CAN_SDIO_queue_Handler, &rx_msg, (TickType_t)10) != pdPASS)
             {
-                ESP_LOGE(TAG, "Error ! - Queue IS FULL !!");
-                for (uint8_t i = 0; i < Queue_Size; i++)
-                {
-                    if (xQueueReceive(CAN_TELE_queue_Handler, &buffer, (TickType_t)10))
-                    {
-                        ESP_LOGI(TAG, "Message No: %u", i);
-                        printf("ID = 0x%03lX\n", buffer.identifier);
-                        printf("Extended? %s\n", buffer.extd ? "Yes" : "No");
-                        printf("RTR? %s\n", buffer.rtr ? "Yes" : "No");
-                        printf("DLC = %d\n", buffer.data_length_code);
-                        for (int i = 0; i < buffer.data_length_code; i++)
-                        {
-                            printf("byte[%d] = 0x%02X\n", i, buffer.data[i]);
-                        }
-                    }
-                    
-                }
+                ESP_LOGE(TAG, "Error ! - SDIO Logging CAN Queue IS FULL !!");
             }
+                
         }
         else
         {
