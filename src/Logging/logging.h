@@ -93,6 +93,23 @@ typedef struct
 	uint16_t z;		/* Z-axis Value */
 } COMM_message_IMU_t;
 
+typedef struct {
+
+	uint16_t Temp_front_left;
+	uint16_t Temp_front_right;
+	uint16_t Temp_rear_left;
+	uint16_t Temp_rear_right;
+
+
+}COMM_message_Temp_t;
+
+typedef struct
+{
+	float longitude;
+	float latitude;
+}COMM_message_GPS_t;
+
+
 
 //----------------------------
 //SDIO File Configuration Structures
@@ -126,6 +143,11 @@ typedef struct
 	COMM_message_IMU_t imu;		//IMU Readings to be stored
 								//Used mostly in .CSV files
 
+	COMM_message_Temp_t temp;		//Temperature Readings to be stored
+								//Used mostly in .CSV files
+
+	COMM_message_GPS_t gps;			//GPS Readings to be stored
+								//Used mostly in .CSV files
 
 
 }SDIO_TxBuffer;

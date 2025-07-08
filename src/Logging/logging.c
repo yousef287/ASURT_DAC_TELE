@@ -163,7 +163,9 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
                        "PRESSURE_1,PRESSURE_2,"
                        "RPM_FL,RPM_FR,RPM_RL,RPM_RR,"
                        "ENC_ANGLE,"
-                       "IMU_X,IMU_Y,IMU_Z\n");
+                       "IMU_X,IMU_Y,IMU_Z"
+                       "Temp_FL,Temp_FR,Temp_RL,Temp_RR"
+                       "GPS_Long, GPS_Lat\n");
 
             // Write formatted data to file
             bytewritten = fprintf(f, "%s,%s,"
@@ -171,7 +173,9 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
                                      "%u,%u,"
                                      "%u,%u,%u,%u,"
                                      "%u,"
-                                     "%u,%u,%u\n",
+                                     "%u,%u,%u,"
+                                     "%u,%u,%u,%u,"
+                                     "%f,%f\n",
 
                                   pTxBuffer->timestamp,
                                   pTxBuffer->string,
@@ -191,7 +195,15 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
 
                                   pTxBuffer->imu.x,
                                   pTxBuffer->imu.y,
-                                  pTxBuffer->imu.z);
+                                  pTxBuffer->imu.z,
+
+                                  pTxBuffer->temp.Temp_front_left,
+                                  pTxBuffer->temp.Temp_front_right,
+                                  pTxBuffer->temp.Temp_rear_left,
+                                  pTxBuffer->temp.Temp_rear_right,
+
+                                  pTxBuffer->gps.longitude,
+                                  pTxBuffer->gps.latitude);
 
             if ((bytewritten == 0) || ret != ESP_OK)
             {
@@ -258,7 +270,9 @@ esp_err_t SDIO_SD_Add_Data(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer)
                                          "%u,%u,"
                                          "%u,%u,%u,%u,"
                                          "%u,"
-                                         "%u,%u,%u\n",
+                                         "%u,%u,%u,"
+                                         "%u,%u,%u,%u,"
+                                         "%f,%f\n",
 
                                       pTxBuffer->timestamp,
                                       pTxBuffer->string,
@@ -278,7 +292,15 @@ esp_err_t SDIO_SD_Add_Data(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer)
 
                                       pTxBuffer->imu.x,
                                       pTxBuffer->imu.y,
-                                      pTxBuffer->imu.z);
+                                      pTxBuffer->imu.z,
+
+                                      pTxBuffer->temp.Temp_front_left,
+                                      pTxBuffer->temp.Temp_front_right,
+                                      pTxBuffer->temp.Temp_rear_left,
+                                      pTxBuffer->temp.Temp_rear_right,
+
+                                      pTxBuffer->gps.longitude,
+                                      pTxBuffer->gps.latitude);
 
                 if ((bytewritten == 0) || ret != ESP_OK)
                 {
@@ -370,7 +392,7 @@ esp_err_t SDIO_SD_Close_file(void)
  * @breif			- Creates New .txt File Called SDIO_CAN_txt and last 10 received msgs
  * @param [in]		- rx_msg: pointer to Buffer storing Received Msg
  * @retval			- Value indicates the States of SD Card (Anything other that ESP_OK is an Error)
- * Note				- 
+ * Note				-
  */
 esp_err_t SDIO_SD_LOG_CAN_Message(twai_message_t *rx_msg)
 {
