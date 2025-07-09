@@ -216,10 +216,10 @@ void app_main()
         // 3. Transmit a message
         twai_transmit(&tx_msg, pdMS_TO_TICKS(1000));  */
 
-    //==========================================RTC_Time_Sync Implementation (IN Progress)===========================================
+    //==========================================RTC_Time_Sync Implementation (DONE)===========================================
     Time_Sync_obtain_time();
 
-    //==========================================RTOS Implementation (Working)===========================================
+    //==========================================RTOS Implementation (Semaphore can be added)===========================================
 
     //=======================Create Queue====================//
 
@@ -363,7 +363,7 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
         }
     }
 }
-void TELE_Log_Task_init(void *pvParameters)
+void TELE_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with sensor format
 {
     const char *TAG = "TELE_Log_Task";
     ESP_LOGI(TAG, "TELE_LOG IS WORKING");
