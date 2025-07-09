@@ -1,5 +1,3 @@
-
-
 //==================================RTOS Libraries Includes==========================//
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -11,8 +9,6 @@
 
 #define LED_GPIO 2 // GPIO pin for the LED
 #define Queue_Size 10
-
-static const char *TAG = "SDIO";
 
 /*
  * ================================================================
@@ -44,7 +40,7 @@ twai_general_config_t g_config = {
 twai_timing_config_t t_config = TWAI_TIMING_CONFIG_125KBITS();
 
 twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
-    
+
 /*
  * ================================================================
  * 							RTOS Config Variables
@@ -68,25 +64,27 @@ void TELE_Log_Task_init(void *pvParameters);
 void app_main()
 {
     //==========================================SDIO Implementation (DONE)===========================================
-    /* esp_err_t ret;
-    ret = SDIO_SD_Init();
+    /*
+    static const char *TAG = "SDIO";
+    esp_err_t ret;
+      ret = SDIO_SD_Init();
 
-    if (ret != ESP_OK)
-    {
-        if (ret == ESP_FAIL)
-        {
-            ESP_LOGE(TAG, "Failed to mount filesystem. "
-                          "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
-        }
-        else
-        {
-            ESP_LOGE(TAG, "Failed to initialize the card (%s). "
-                          "Make sure SD card lines have pull-up resistors in place.",
-                     esp_err_to_name(ret));
-        }
-        return;
-    }
-    ESP_LOGI(TAG, "Filesystem mounted"); */
+      if (ret != ESP_OK)
+      {
+          if (ret == ESP_FAIL)
+          {
+              ESP_LOGE(TAG, "Failed to mount filesystem. "
+                            "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
+          }
+          else
+          {
+              ESP_LOGE(TAG, "Failed to initialize the card (%s). "
+                            "Make sure SD card lines have pull-up resistors in place.",
+                       esp_err_to_name(ret));
+          }
+          return;
+      }
+      ESP_LOGI(TAG, "Filesystem mounted"); */
     /*
 
         SDIO_txt.name = "SDIO.TXT";
@@ -186,7 +184,8 @@ void app_main()
 
     //==========================================WIFI Implementation (DONE)===========================================
     // ESP_ERROR_CHECK(wifi_init("Mi A2", "min@fathy2004"));
-    ESP_ERROR_CHECK(wifi_init("Belal's A34", "password"));
+    // ESP_ERROR_CHECK(wifi_init("Belal's A34", "password"));
+    ESP_ERROR_CHECK(wifi_init("Fathy WIFI", "Min@F@thy.2004$$"));
 
     /* Wait until connected */
     xEventGroupWaitBits(wifi_event_group(), WIFI_CONNECTED_BIT,
@@ -232,25 +231,17 @@ void app_main()
         ESP_LOGE("RTOS", "Unable to Create Structure Queue\r\n");
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
-    else // If there is  queue created
-    {
-        ESP_LOGI("RTOS", "Structure Queue Created Successfully\r\n");
-    }
 
     if (CAN_SDIO_queue_Handler == NULL) // If there is no queue created
     {
         ESP_LOGE("RTOS", "Unable to Create Structure Queue");
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
-    else // If there is  queue created
-    {
-        ESP_LOGI("RTOS", "Structure Queue Created Successfully");
-    }
 
     //=============Define Tasks=================//
-    xTaskCreate((TaskFunction_t)CAN_Receive_Task_init, "CAN_Receive_Task", 4096, NULL, (UBaseType_t)4, &CAN_Receive_TaskHandler);
+    xTaskCreate((TaskFunction_t)TELE_Log_Task_init, "TELE_Log_Task", 4096, NULL, (UBaseType_t)4, &TELE_Log_TaskHandler);
     xTaskCreate((TaskFunction_t)SDIO_Log_Task_init, "SDIO_Log_Task", 4096, NULL, (UBaseType_t)4, &SDIO_Log_TaskHandler);
-    // xTaskCreate((TaskFunction_t)TELE_Log_Task_init, "TELE_Log_Task", 1024, NULL, (UBaseType_t)4, &TELE_Log_TaskHandler);
+    xTaskCreate((TaskFunction_t)CAN_Receive_Task_init, "CAN_Receive_Task", 4096, NULL, (UBaseType_t)4, &CAN_Receive_TaskHandler);
 
     while (1)
     {
@@ -285,24 +276,29 @@ void CAN_Receive_Task_init(void *pvParameters) // DONE
         {
             // Process rx_msg->identifier, rx_msg->data, etc.
 
-            /*  printf("ID = 0x%03lX\n",rx_msg->identifier);
-             printf("Extended? %s\n", rx_msg->extd ? "Yes" : "No");
-             printf("RTR? %s\n", rx_msg->rtr ? "Yes" : "No");
-             printf("DLC = %d\n", rx_msg->data_length_code);
-             for (int i = 0; i < rx_msg->data_length_code; i++) {
-                 printf("byte[%d] = 0x%02X\n", i, rx_msg->data[i]);
-             } */
-
+            /* printf("ID = 0x%03lX\n",rx_msg.identifier);
+            printf("Extended? %s\n", rx_msg.extd ? "Yes" : "No");
+            printf("RTR? %s\n", rx_msg.rtr ? "Yes" : "No");
+            printf("DLC = %d\n", rx_msg.data_length_code);
+            for (int i = 0; i < rx_msg.data_length_code; i++) {
+                printf("byte[%d] = 0x%02X\n", i, rx_msg.data[i]);
+            }
+*/
             // Format the message into the string buffer
-            if (xQueueSend(CAN_TELE_queue_Handler, &rx_msg, (TickType_t)10) != pdPASS)
+            if (xQueueSend(CAN_TELE_queue_Handler, &rx_msg, (TickType_t)10) == pdPASS)
             {
-                // ESP_LOGE(TAG, "Error ! - Telemetry CAN Queue IS FULL !!");
-                // raise FLAG
+                if (TELE_Log_TaskHandler != NULL)
+                {
+                    xTaskNotifyGive(TELE_Log_TaskHandler); // Notify TELE task
+                }
             }
 
             if (xQueueSend(CAN_SDIO_queue_Handler, &rx_msg, (TickType_t)10) != pdPASS)
             {
-                // RAISE Flag
+                if (SDIO_Log_TaskHandler != NULL)
+                {
+                    xTaskNotifyGive(SDIO_Log_TaskHandler); // Notify SDIO task
+                }
             }
         }
         else
@@ -322,15 +318,29 @@ void CAN_Receive_Task_init(void *pvParameters) // DONE
 }
 void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with sensor format
 {                                           // Add filter for ID
+
     const char *TAG = "SDIO_Log_Task";
     ESP_LOGI(TAG, "SDO_LOG IS WORKING");
     twai_message_t buffer;
     SDIO_TxBuffer SDIO_buffer;
     while (1)
     {
+        // Wait for notification
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
         if (xQueueReceive(CAN_SDIO_queue_Handler, &buffer, (TickType_t)10))
         {
+            //To print the Message Received
+            /* printf("ID = 0x%03lX ", buffer.identifier);
+            printf("Extended? %s ", buffer.extd ? "Yes" : "No");
+            printf("RTR? %s ", buffer.rtr ? "Yes" : "No");
+            printf("DLC = %d\n", buffer.data_length_code);
+            for (int i = 0; i < buffer.data_length_code; i++)
+            {
+                printf("byte[%d] = 0x%02X ", i, buffer.data[i]);
+            }
+            printf("\n");
+             */
             if (buffer.data_length_code >= sizeof(COMM_message_ADC_t))
             {
 
@@ -356,9 +366,27 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
 void TELE_Log_Task_init(void *pvParameters)
 {
     const char *TAG = "TELE_Log_Task";
+    ESP_LOGI(TAG, "TELE_LOG IS WORKING");
+    twai_message_t buffer;
     while (1)
     {
-        ESP_LOGI(TAG, "TELE_LOG IS WORKING");
-        vTaskDelay(pdMS_TO_TICKS(1000));
+
+        // Wait for notification
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+        if (xQueueReceive(CAN_TELE_queue_Handler, &buffer, (TickType_t)10))
+        {
+            //To print the Message Received
+            /* printf("ID = 0x%03lX ", buffer.identifier);
+            printf("Extended? %s ", buffer.extd ? "Yes" : "No");
+            printf("RTR? %s ", buffer.rtr ? "Yes" : "No");
+            printf("DLC = %d\n", buffer.data_length_code);
+            for (int i = 0; i < buffer.data_length_code; i++)
+            {
+                printf("byte[%d] = 0x%02X ", i, buffer.data[i]);
+            }
+            printf("\n"); */
+            ESP_LOGI(TAG, "TELE_LOG Got Notified!!");
+        }
     }
 }
