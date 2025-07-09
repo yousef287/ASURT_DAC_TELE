@@ -12,6 +12,7 @@
 //includes
 //--------------------------------
 #include <time.h>
+#include "ff.h"     // For DWORD
 #include <sys/time.h>
 #include "esp_sntp.h"
 #include "esp_log.h"
@@ -27,5 +28,4 @@ void Time_Sync_init_sntp(void);
 void Time_Sync_obtain_time(void);
 uint8_t Time_Sync_get_rtc_time_str(char *buffer, uint8_t max_len);  
 void wifi_connect(void);
-
 #endif // RTC_TIME_SYNC_H

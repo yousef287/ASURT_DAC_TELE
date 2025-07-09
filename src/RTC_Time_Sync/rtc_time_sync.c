@@ -18,9 +18,9 @@ static const char *TAG = "rtc_time";
 void Time_Sync_init_sntp(void)
 {
     ESP_LOGI(TAG, "Initializing SNTP");
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "pool.ntp.org");
-    sntp_init();
+    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");
+    esp_sntp_init();
 }
 
 void Time_Sync_obtain_time(void)
@@ -46,3 +46,4 @@ uint8_t Time_Sync_get_rtc_time_str(char *buffer, uint8_t max_len)
     strftime(buffer, max_len, "%Y-%m-%d %H:%M:%S", &timeinfo);
     return true;
 } 
+

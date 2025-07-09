@@ -134,14 +134,23 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
         open_file = NULL; // Reset the open file name
     }
     snprintf(file->path, sizeof(file->path), "%s/%s", MOUNT_POINT, file->name);
-    f = fopen(file->path, "w");
 
-    if (f == NULL)
+    struct stat st;
+    if ((stat(file->path, &st) == 0) && (compare_file_time_days(file->path) <= 2)) // Check if the files exists and Modification Time less than 2 days
     {
-        return ESP_FAIL; // Failed to open file for writing
+        // Add to the file and don't create new one
+        if (SDIO_SD_Add_Data(file, pTxBuffer) != ESP_OK)
+        {
+            ESP_LOGE("SDIO", "Error in SDIO.CSV Append!");
+        }
     }
-    else
+    else // Create new file
     {
+        f = fopen(file->path, "w");
+        if (f == NULL)
+        {
+            return ESP_FAIL; // Failed to open file for writing
+        }
         open_file = file->name; // Assign the name of the opened file
 
         // Check if file type is .TXT or .CSV
@@ -478,4 +487,32 @@ esp_err_t SDIO_SD_LOG_CAN_Message(twai_message_t *rx_msg)
     vTaskDelay(pdMS_TO_TICKS(1000));
 
     return ESP_OK;
+}
+
+/**================================================================
+ * @Fn				- compare_file_time_days
+ * @breif			- Compares between file last modified time and current time 
+ *                  - and outputs difference in Days
+ * @param [in]		- path: pointer to path of File to be compared
+ * @retval			- Value indicates number of days between current date and Last modified date
+ * Note				-
+ */
+uint16_t compare_file_time_days(const char *path)
+{
+
+    struct stat st;
+    if (stat(path, &st) != 0)
+    {
+        printf("Failed to stat file: %s\n", path);
+        return 0xFFFF; // or another error code
+    }
+    time_t mod_time = st.st_mtime;
+    time_t now = time(NULL);
+
+    // Calculate time difference in seconds
+    uint64_t diff_seconds = difftime(now, mod_time);
+    // Convert to days
+    uint16_t diff_days = (int)(diff_seconds / (60 * 60 * 24));
+
+    return (diff_days);
 }

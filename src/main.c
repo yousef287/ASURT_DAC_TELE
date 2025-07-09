@@ -63,44 +63,54 @@ void TELE_Log_Task_init(void *pvParameters);
 
 void app_main()
 {
+    //==========================================WIFI Implementation (DONE)===========================================
+    // ESP_ERROR_CHECK(wifi_init("Mi A2", "min@fathy2004"));
+    // ESP_ERROR_CHECK(wifi_init("Belal's A34", "password"));
+    ESP_ERROR_CHECK(wifi_init("Fathy WIFI", "Min@F@thy.2004$$"));
+
+    /* Wait until connected */
+    xEventGroupWaitBits(wifi_event_group(), WIFI_CONNECTED_BIT,
+                        pdFALSE, pdFALSE, portMAX_DELAY);
+
+    ESP_LOGI("WIFI", "Connected to WiFi!");
+    //==========================================RTC_Time_Sync Implementation (DONE)===========================================
+    Time_Sync_obtain_time();
     //==========================================SDIO Implementation (DONE)===========================================
-    /*
+
     static const char *TAG = "SDIO";
     esp_err_t ret;
-      ret = SDIO_SD_Init();
+    ret = SDIO_SD_Init();
 
-      if (ret != ESP_OK)
-      {
-          if (ret == ESP_FAIL)
-          {
-              ESP_LOGE(TAG, "Failed to mount filesystem. "
-                            "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
-          }
-          else
-          {
-              ESP_LOGE(TAG, "Failed to initialize the card (%s). "
-                            "Make sure SD card lines have pull-up resistors in place.",
-                       esp_err_to_name(ret));
-          }
-          return;
-      }
-      ESP_LOGI(TAG, "Filesystem mounted"); */
+    if (ret != ESP_OK)
+    {
+        if (ret == ESP_FAIL)
+        {
+            ESP_LOGE(TAG, "Failed to mount filesystem. "
+                          "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
+        }
+        else
+        {
+            ESP_LOGE(TAG, "Failed to initialize the card (%s). "
+                          "Make sure SD card lines have pull-up resistors in place.",
+                     esp_err_to_name(ret));
+        }
+        return;
+    }
+    ESP_LOGI(TAG, "Filesystem mounted");
     /*
-
         SDIO_txt.name = "SDIO.TXT";
         SDIO_txt.type = TXT;
         buffer.string = "Hello World line 1\r\nHello World line 2\r\nHello World line 3\r";
-        if(SDIO_SD_Create_Write_File(&SDIO_txt, &buffer) == ESP_OK)
+        if (SDIO_SD_Create_Write_File(&SDIO_txt, &buffer) == ESP_OK)
         {
             ESP_LOGI(TAG, "SDIO.TXT Written Successfully!");
         }
-
 
         SDIO_test.name = "SDIO.CSV";
         SDIO_test.type = CSV;
         buffer.string = "LOG1";
         buffer.timestamp = "2023-10-01 12:00:00";
-        buffer.adc.SUS_1= 15;
+        buffer.adc.SUS_1 = 15;
         buffer.adc.SUS_2 = 20;
         buffer.adc.SUS_3 = 25;
         buffer.adc.SUS_4 = 30;
@@ -115,22 +125,22 @@ void app_main()
         buffer.imu.y = 200;
         buffer.imu.z = 300;
 
-        if(SDIO_SD_Create_Write_File(&SDIO_test, &buffer) == ESP_OK)
+        if (SDIO_SD_Create_Write_File(&SDIO_test, &buffer) == ESP_OK)
         {
             ESP_LOGI(TAG, "SDIO.CSV Written Successfully!");
         }
 
         SDIO_SD_Read_Data(&SDIO_txt);
         SDIO_SD_Read_Data(&SDIO_test);
-        //Append data to the existing files
+        // Append data to the existing files
         buffer.string = "Hello World line 4\r\nHello World line 5\r\n";
-        if(SDIO_SD_Add_Data(&SDIO_txt, &buffer) == ESP_OK)
+        if (SDIO_SD_Add_Data(&SDIO_txt, &buffer) == ESP_OK)
         {
             ESP_LOGI(TAG, "SDIO.TXT Appended Successfully!");
         }
 
         buffer.string = "LOG2";
-        buffer.timestamp = "2023-10-01 12:00:01";  // 1 second later
+        buffer.timestamp = "2023-10-01 12:00:01"; // 1 second later
 
         buffer.adc.SUS_1 = 18;
         buffer.adc.SUS_2 = 22;
@@ -140,11 +150,11 @@ void app_main()
         buffer.adc.PRESSURE_1 = 12;
         buffer.adc.PRESSURE_2 = 17;
 
-        buffer.prox_encoder.RPM_front_left  = 1020;
+        buffer.prox_encoder.RPM_front_left = 1020;
         buffer.prox_encoder.RPM_front_right = 1120;
-        buffer.prox_encoder.RPM_rear_left   = 1220;
-        buffer.prox_encoder.RPM_rear_right  = 1320;
-        buffer.prox_encoder.ENCODER_angle   = 47;
+        buffer.prox_encoder.RPM_rear_left = 1220;
+        buffer.prox_encoder.RPM_rear_right = 1320;
+        buffer.prox_encoder.ENCODER_angle = 47;
 
         buffer.imu.x = 110;
         buffer.imu.y = 210;
@@ -158,16 +168,15 @@ void app_main()
         buffer.gps.longitude = 30.123456;
         buffer.gps.latitude = 31.123456;
 
-        if(SDIO_SD_Add_Data(&SDIO_test, &buffer) == ESP_OK)
+        if (SDIO_SD_Create_Write_File(&SDIO_test, &buffer) == ESP_OK)
         {
             ESP_LOGI(TAG, "SDIO.CSV Appended Successfully!");
         }
 
-        if(SDIO_SD_Close_file() == ESP_OK)
+        if (SDIO_SD_Close_file() == ESP_OK)
         {
             ESP_LOGI(TAG, "File Closed Successfully!");
         }
-
 
         // Read the files again to verify the appended data
         SDIO_SD_Read_Data(&SDIO_txt);
@@ -178,20 +187,7 @@ void app_main()
 
         // All done, unmount partition and disable SDMMC peripheral
         if(SDIO_SD_DeInit() == ESP_OK)
-        ESP_LOGI(TAG, "Card unmounted successfully");
-
-        */
-
-    //==========================================WIFI Implementation (DONE)===========================================
-    // ESP_ERROR_CHECK(wifi_init("Mi A2", "min@fathy2004"));
-    // ESP_ERROR_CHECK(wifi_init("Belal's A34", "password"));
-    ESP_ERROR_CHECK(wifi_init("Fathy WIFI", "Min@F@thy.2004$$"));
-
-    /* Wait until connected */
-    xEventGroupWaitBits(wifi_event_group(), WIFI_CONNECTED_BIT,
-                        pdFALSE, pdFALSE, portMAX_DELAY);
-
-    ESP_LOGI("WIFI", "Connected to WiFi!");
+        ESP_LOGI(TAG, "Card unmounted successfully"); */
 
     //==========================================CAN Implementation (DONE)===========================================
 
@@ -215,9 +211,6 @@ void app_main()
         };
         // 3. Transmit a message
         twai_transmit(&tx_msg, pdMS_TO_TICKS(1000));  */
-
-    //==========================================RTC_Time_Sync Implementation (DONE)===========================================
-    Time_Sync_obtain_time();
 
     //==========================================RTOS Implementation (Semaphore can be added)===========================================
 
@@ -330,7 +323,7 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
 
         if (xQueueReceive(CAN_SDIO_queue_Handler, &buffer, (TickType_t)10))
         {
-            //To print the Message Received
+            // To print the Message Received
             /* printf("ID = 0x%03lX ", buffer.identifier);
             printf("Extended? %s ", buffer.extd ? "Yes" : "No");
             printf("RTR? %s ", buffer.rtr ? "Yes" : "No");
@@ -341,25 +334,25 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
             }
             printf("\n");
              */
-            if (buffer.data_length_code >= sizeof(COMM_message_ADC_t))
-            {
+            /*  if (buffer.data_length_code >= sizeof(COMM_message_ADC_t))
+             {
 
-                SDIO_buffer.adc = *((COMM_message_ADC_t *)buffer.data);
-            }
-            else
-            {
-                ESP_LOGW(TAG, "DLC mismatch: expected %d, got %d",
-                         sizeof(COMM_message_ADC_t), buffer.data_length_code);
-                continue;
-            }
-            ESP_LOGI(TAG, "SUS_1: %u SUS_2: %u SUS_3: %u SUS_4: %u Press_1: %u Press_2: %u",
-                     SDIO_buffer.adc.SUS_1,
-                     SDIO_buffer.adc.SUS_2,
-                     SDIO_buffer.adc.SUS_3,
-                     SDIO_buffer.adc.SUS_4,
-                     SDIO_buffer.adc.PRESSURE_1,
-                     SDIO_buffer.adc.PRESSURE_2);
-            // SDIO_SD_LOG_CAN_Message(&buffer);
+                 SDIO_buffer.adc = *((COMM_message_ADC_t *)buffer.data);
+             }
+             else
+             {
+                 ESP_LOGW(TAG, "DLC mismatch: expected %d, got %d",
+                          sizeof(COMM_message_ADC_t), buffer.data_length_code);
+                 continue;
+             }
+             ESP_LOGI(TAG, "SUS_1: %u SUS_2: %u SUS_3: %u SUS_4: %u Press_1: %u Press_2: %u",
+                      SDIO_buffer.adc.SUS_1,
+                      SDIO_buffer.adc.SUS_2,
+                      SDIO_buffer.adc.SUS_3,
+                      SDIO_buffer.adc.SUS_4,
+                      SDIO_buffer.adc.PRESSURE_1,
+                      SDIO_buffer.adc.PRESSURE_2); */
+            SDIO_SD_LOG_CAN_Message(&buffer);
         }
     }
 }
@@ -376,7 +369,7 @@ void TELE_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
 
         if (xQueueReceive(CAN_TELE_queue_Handler, &buffer, (TickType_t)10))
         {
-            //To print the Message Received
+            // To print the Message Received
             /* printf("ID = 0x%03lX ", buffer.identifier);
             printf("Extended? %s ", buffer.extd ? "Yes" : "No");
             printf("RTR? %s ", buffer.rtr ? "Yes" : "No");
