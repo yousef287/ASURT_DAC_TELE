@@ -82,7 +82,7 @@ void udp_socket_close(void) {
 
 void udp_sender_task(void *pvParameters)
 {
-    QueueHandle_t queue = (QueueHandle_t)pvParameters;
+    QueueHandle_t telemetry_queue = (QueueHandle_t)pvParameters;
     EventGroupHandle_t eg = wifi_event_group();
     xEventGroupWaitBits(eg,
                         WIFI_CONNECTED_BIT,
@@ -101,7 +101,7 @@ void udp_sender_task(void *pvParameters)
     int len = sizeof(twai_message_t);
 
     while (1) {
-        if (xQueueReceive(queue, &current, portMAX_DELAY) != pdTRUE) {
+        if (xQueueReceive(telemetry_queue, &current, portMAX_DELAY) != pdTRUE) {
             ESP_LOGE(TAG, "Queue receive failed");
             continue;
         }
@@ -120,7 +120,7 @@ void udp_sender_task(void *pvParameters)
         bool sent = false;
         int last_err = 0;
         for (int attempt = 1; attempt <= UDP_MAX_RETRIES; ++attempt) {
-            if (xQueueReceive(queue, &newer, 0) == pdTRUE) {
+            if (xQueueReceive(telemetry_queue, &newer, 0) == pdTRUE) {
                 current = newer;
                 attempt = 0;
                 continue;

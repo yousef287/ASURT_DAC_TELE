@@ -64,7 +64,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 void mqtt_sender_task(void *pvParameters)
 {
 #if USE_MQTT
-    QueueHandle_t queue = (QueueHandle_t)pvParameters;
+    QueueHandle_t telemetry_queue = (QueueHandle_t)pvParameters;
     EventGroupHandle_t eg = wifi_event_group();
     xEventGroupWaitBits(eg, WIFI_CONNECTED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 
@@ -83,11 +83,11 @@ void mqtt_sender_task(void *pvParameters)
     int len = sizeof(twai_message_t);
     bool warned = false;
     while (1) {
-        if (xQueueReceive(queue, &current, portMAX_DELAY) != pdTRUE) {
+        if (xQueueReceive(telemetry_queue, &current, portMAX_DELAY) != pdTRUE) {
             ESP_LOGE(TAG, "Queue receive failed");
             continue;
         }
-        if (xQueueReceive(queue, &newer, 0) == pdTRUE)
+        if (xQueueReceive(telemetry_queue, &newer, 0) == pdTRUE)
             current = newer;
 
         if ((xEventGroupGetBits(eg) & WIFI_CONNECTED_BIT) == 0 || !mqtt_connected) {
