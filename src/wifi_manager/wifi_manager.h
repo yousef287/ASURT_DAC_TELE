@@ -43,4 +43,9 @@ EventGroupHandle_t wifi_event_group(void);
  */
 esp_netif_ip_info_t wifi_get_ip_info(void);
 
+/**
+ * @brief Force a Wi-Fi disconnect so the manager will reconnect.
+ */
+void wifi_force_reconnect(void);
+
 #endif // WIFI_MANAGER_H

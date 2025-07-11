@@ -180,3 +180,12 @@ esp_netif_ip_info_t wifi_get_ip_info(void)
     }
     return copy;
 }
+
+void wifi_force_reconnect(void)
+{
+    ESP_LOGW(TAG, "Forcing Wi-Fi reconnection");
+    esp_err_t err = esp_wifi_disconnect();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_disconnect failed: %s", esp_err_to_name(err));
+    }
+}
