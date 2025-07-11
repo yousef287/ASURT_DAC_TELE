@@ -6,10 +6,11 @@
  * ----------------------
  * Handles Wi-Fi init in station mode, auto-reconnect, and
  * signals connected state via a FreeRTOS event group.
- * Standalone version without application specific dependencies.
+ * Now also closes the UDP socket on disconnect.
  */
 
 #include "wifi_manager.h"       // wifi_init(), wifi_event_group()
+#include "udp_sender.h"         // udp_socket_close()
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/semphr.h"
@@ -20,6 +21,8 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "esp_netif.h"
+#include "driver/gpio.h"
+#include "config.h"
 #include <sys/param.h>  // MIN()
 #include <string.h>
 
@@ -51,13 +54,14 @@ static void wifi_event_handler(void *arg,
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         ESP_LOGI(TAG, "Station started, connecting to AP...");
         s_retry_delay_ms = WIFI_RETRY_INITIAL_DELAY_MS;
+        gpio_set_level(WIFI_STATUS_LED_GPIO, 0); // LED off until connected
         esp_err_t err = esp_wifi_connect();
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "esp_wifi_connect failed: %s", esp_err_to_name(err));
         }
     }
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        // Lost connection: clear bit and attempt reconnection
+        // Lost connection: clear bit, reconnect, close UDP socket
         xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
         ESP_LOGW(TAG, "Wi-Fi disconnected. Reconnecting in %lu ms", (unsigned long)s_retry_delay_ms);
         if (xTimerIsTimerActive(s_reconnect_timer)) {
@@ -73,6 +77,9 @@ static void wifi_event_handler(void *arg,
             xSemaphoreGive(s_ip_mutex);
         }
 
+        // Close UDP socket to free resources immediately
+        gpio_set_level(WIFI_STATUS_LED_GPIO, 0);
+        udp_socket_close();
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *evt = (ip_event_got_ip_t *) event_data;
@@ -83,6 +90,7 @@ static void wifi_event_handler(void *arg,
             xSemaphoreGive(s_ip_mutex);
         }
         ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&evt->ip_info.ip));
+        gpio_set_level(WIFI_STATUS_LED_GPIO, 1);
         if (xTimerIsTimerActive(s_reconnect_timer)) {
             xTimerStop(s_reconnect_timer, 0);
         }
@@ -103,10 +111,12 @@ static void wifi_event_handler(void *arg,
             memset(&s_ip_info, 0, sizeof(s_ip_info));
             xSemaphoreGive(s_ip_mutex);
         }
+        gpio_set_level(WIFI_STATUS_LED_GPIO, 0);
+        udp_socket_close();
     }
 }
 
-esp_err_t wifi_init(const char *ssid, const char *password)
+esp_err_t wifi_init(void)
 {
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
@@ -146,6 +156,11 @@ esp_err_t wifi_init(const char *ssid, const char *password)
         return ESP_FAIL;
     }
 
+    // Configure status LED GPIO
+    gpio_reset_pin(WIFI_STATUS_LED_GPIO);
+    gpio_set_direction(WIFI_STATUS_LED_GPIO, GPIO_MODE_OUTPUT);
+    gpio_set_level(WIFI_STATUS_LED_GPIO, 0);
+
     esp_netif_create_default_wifi_sta();
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -158,10 +173,12 @@ esp_err_t wifi_init(const char *ssid, const char *password)
         IP_EVENT, IP_EVENT_STA_LOST_IP, wifi_event_handler, NULL));
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    wifi_config_t sta_cfg;
-    memset(&sta_cfg, 0, sizeof(sta_cfg));
-    strncpy((char *)sta_cfg.sta.ssid, ssid, sizeof(sta_cfg.sta.ssid) - 1);
-    strncpy((char *)sta_cfg.sta.password, password, sizeof(sta_cfg.sta.password) - 1);
+    wifi_config_t sta_cfg = {
+        .sta = {
+            .ssid = WIFI_SSID,
+            .password = WIFI_PASS,
+        }
+    };
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_cfg));
     ESP_ERROR_CHECK(esp_wifi_start());
 
