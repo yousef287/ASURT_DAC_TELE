@@ -6,6 +6,10 @@
 #include "logging/logging.h"
 #include "driver/twai.h"
 #include "RTC_Time_Sync/rtc_time_sync.h"
+#include "telemetry_config.h"
+#include "connectivity/connectivity.h"
+#include "udp_sender/udp_sender.h"
+#include "mqtt_sender/mqtt_sender.h"
 
 #define LED_GPIO 2 // GPIO pin for the LED
 #define Queue_Size 10
@@ -232,9 +236,14 @@ void app_main()
     }
 
     //=============Define Tasks=================//
-    xTaskCreate((TaskFunction_t)TELE_Log_Task_init, "TELE_Log_Task", 4096, NULL, (UBaseType_t)4, &TELE_Log_TaskHandler);
     xTaskCreate((TaskFunction_t)SDIO_Log_Task_init, "SDIO_Log_Task", 4096, NULL, (UBaseType_t)4, &SDIO_Log_TaskHandler);
     xTaskCreate((TaskFunction_t)CAN_Receive_Task_init, "CAN_Receive_Task", 4096, NULL, (UBaseType_t)4, &CAN_Receive_TaskHandler);
+#if USE_MQTT
+    xTaskCreate(mqtt_sender_task, "mqtt_sender", 4096, CAN_TELE_queue_Handler, 4, NULL);
+#else
+    xTaskCreate(udp_sender_task, "udp_sender", 4096, CAN_TELE_queue_Handler, 4, NULL);
+#endif
+    xTaskCreate(connectivity_monitor_task, "conn_monitor", 4096, NULL, 4, NULL);
 
     while (1)
     {
