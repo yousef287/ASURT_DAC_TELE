@@ -6,6 +6,10 @@
 #include "logging/logging.h"
 #include "driver/twai.h"
 #include "RTC_Time_Sync/rtc_time_sync.h"
+#include "telemetry_config.h"
+#include "connectivity/connectivity.h"
+#include "udp_sender/udp_sender.h"
+#include "mqtt_sender/mqtt_sender.h"
 
 #define LED_GPIO 2 // GPIO pin for the LED
 #define Queue_Size 10
@@ -49,17 +53,15 @@ twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
  * */
 // Define Queue Handler
 QueueHandle_t CAN_SDIO_queue_Handler;
-QueueHandle_t CAN_TELE_queue_Handler;
+QueueHandle_t telemetry_queue;
 
 // Define Tasks Handler to hold task ID
 TaskHandle_t CAN_Receive_TaskHandler;
 TaskHandle_t SDIO_Log_TaskHandler;
-TaskHandle_t TELE_Log_TaskHandler;
 
 // Declare Tasks Entery point
 void CAN_Receive_Task_init(void *pvParameters);
 void SDIO_Log_Task_init(void *pvParameters);
-void TELE_Log_Task_init(void *pvParameters);
 
 void app_main()
 {
@@ -216,10 +218,10 @@ void app_main()
 
     //=======================Create Queue====================//
 
-    CAN_TELE_queue_Handler = xQueueCreate(Queue_Size, sizeof(twai_message_t));
+    telemetry_queue = xQueueCreate(Queue_Size, sizeof(twai_message_t));
     CAN_SDIO_queue_Handler = xQueueCreate(Queue_Size, sizeof(twai_message_t));
 
-    if (CAN_TELE_queue_Handler == NULL) // If there is no queue created
+    if (telemetry_queue == NULL) // If there is no queue created
     {
         ESP_LOGE("RTOS", "Unable to Create Structure Queue\r\n");
         vTaskDelay(pdMS_TO_TICKS(1000));
@@ -232,9 +234,14 @@ void app_main()
     }
 
     //=============Define Tasks=================//
-    xTaskCreate((TaskFunction_t)TELE_Log_Task_init, "TELE_Log_Task", 4096, NULL, (UBaseType_t)4, &TELE_Log_TaskHandler);
     xTaskCreate((TaskFunction_t)SDIO_Log_Task_init, "SDIO_Log_Task", 4096, NULL, (UBaseType_t)4, &SDIO_Log_TaskHandler);
     xTaskCreate((TaskFunction_t)CAN_Receive_Task_init, "CAN_Receive_Task", 4096, NULL, (UBaseType_t)4, &CAN_Receive_TaskHandler);
+#if USE_MQTT
+    xTaskCreate(mqtt_sender_task, "mqtt_sender", 4096, telemetry_queue, 4, NULL);
+#else
+    xTaskCreate(udp_sender_task, "udp_sender", 4096, telemetry_queue, 4, NULL);
+#endif
+    xTaskCreate(connectivity_monitor_task, "conn_monitor", 4096, NULL, 4, NULL);
 
     while (1)
     {
@@ -278,13 +285,7 @@ void CAN_Receive_Task_init(void *pvParameters) // DONE
             }
 */
             // Format the message into the string buffer
-            if (xQueueSend(CAN_TELE_queue_Handler, &rx_msg, (TickType_t)10) == pdPASS)
-            {
-                if (TELE_Log_TaskHandler != NULL)
-                {
-                    xTaskNotifyGive(TELE_Log_TaskHandler); // Notify TELE task
-                }
-            }
+            xQueueSend(telemetry_queue, &rx_msg, (TickType_t)10);
 
             if (xQueueSend(CAN_SDIO_queue_Handler, &rx_msg, (TickType_t)10) != pdPASS)
             {
@@ -444,33 +445,6 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
         if(SDIO_SD_Create_Write_File(&LOG_CSV, &SDIO_buffer) != ESP_OK)
         {
             ESP_LOGI(TAG, "ERROR! : %s is not Created // Appedended", LOG_CSV.name);
-        }
-    }
-}
-void TELE_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with sensor format
-{
-    const char *TAG = "TELE_Log_Task";
-    ESP_LOGI(TAG, "TELE_LOG IS WORKING");
-    twai_message_t buffer;
-    while (1)
-    {
-
-        // Wait for notification
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-
-        if (xQueueReceive(CAN_TELE_queue_Handler, &buffer, (TickType_t)10))
-        {
-            // To print the Message Received
-            /* printf("ID = 0x%03lX ", buffer.identifier);
-            printf("Extended? %s ", buffer.extd ? "Yes" : "No");
-            printf("RTR? %s ", buffer.rtr ? "Yes" : "No");
-            printf("DLC = %d\n", buffer.data_length_code);
-            for (int i = 0; i < buffer.data_length_code; i++)
-            {
-                printf("byte[%d] = 0x%02X ", i, buffer.data[i]);
-            }
-            printf("\n"); */
-            ESP_LOGI(TAG, "TELE_LOG Got Notified!!");
         }
     }
 }
