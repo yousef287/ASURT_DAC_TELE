@@ -126,6 +126,7 @@ esp_err_t SDIO_SD_DeInit(void)
 esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer)
 {
     ret = ESP_OK;
+    fclose(f);
 
     // Check if another file is already opened
     if (open_file != NULL)
@@ -142,14 +143,17 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
         // Add to the file and don't create new one
         if (SDIO_SD_Add_Data(file, pTxBuffer) != ESP_OK)
         {
-            ESP_LOGE("SDIO", "Error in SDIO.CSV Append!");
+            ESP_LOGE("SDIO", "Error in %s Append!", file->name);
         }
     }
     else // Create new file
     {
+
         f = fopen(file->path, "w");
         if (f == NULL)
         {
+            ESP_LOGE("SDIO", "Error in %s Create Unable to Create Path:%s!", file->name, file->path);
+            
             return ESP_FAIL; // Failed to open file for writing
         }
         open_file = file->name; // Assign the name of the opened file
@@ -162,6 +166,7 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
             if ((bytewritten == 0) || ret != ESP_OK)
             {
                 ret = ESP_ERR_NOT_FINISHED;
+                ESP_LOGE("SDIO", "ESP_ERR_NOT_FINISHED in Writing %s file!", file->name);
                 return ret; // Failed to write to file
             }
         }
@@ -223,6 +228,7 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
 
             if ((bytewritten == 0) || ret != ESP_OK)
             {
+                ESP_LOGE("SDIO", "Error in Writing .CSV File");
                 ret = ESP_ERR_NOT_FINISHED;
                 return ret; // Failed to write to file
             }

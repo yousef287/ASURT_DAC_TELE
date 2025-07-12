@@ -99,7 +99,7 @@ void app_main()
         return;
     }
     ESP_LOGI(TAG, "Filesystem mounted");
-    /*
+    
         SDIO_txt.name = "SDIO.TXT";
         SDIO_txt.type = TXT;
         buffer.string = "Hello World line 1\r\nHello World line 2\r\nHello World line 3\r";
@@ -123,9 +123,9 @@ void app_main()
         buffer.prox_encoder.RPM_rear_left = 1200;
         buffer.prox_encoder.RPM_rear_right = 1300;
         buffer.prox_encoder.ENCODER_angle = 45;
-        buffer.imu.x = 100;
-        buffer.imu.y = 200;
-        buffer.imu.z = 300;
+        buffer.imu_accel.x = 100;
+        buffer.imu_accel.y = 200;
+        buffer.imu_accel.z = 300;
 
         if (SDIO_SD_Create_Write_File(&SDIO_test, &buffer) == ESP_OK)
         {
@@ -134,7 +134,7 @@ void app_main()
 
         SDIO_SD_Read_Data(&SDIO_txt);
         SDIO_SD_Read_Data(&SDIO_test);
-        // Append data to the existing files
+    /*    // Append data to the existing files
         buffer.string = "Hello World line 4\r\nHello World line 5\r\n";
         if (SDIO_SD_Add_Data(&SDIO_txt, &buffer) == ESP_OK)
         {
