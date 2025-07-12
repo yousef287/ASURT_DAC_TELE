@@ -28,35 +28,56 @@
 //===================================FATFS Includes===================================//
 #include "esp_vfs_fat.h"
 
-
-
 //----------------------------
-//SDIO Macros
+// SDIO Macros
 //----------------------------
-#define CMD     15
-#define CLK     14
-#define D0      2
-#define D1      4
-#define D2      12
-#define D3      13
+#define CMD 15
+#define CLK 14
+#define D0 2
+#define D1 4
+#define D2 12
+#define D3 13
 
 #define SDMMC_BUS_WIDTH_4
 
-#define MAX_CHAR_SIZE  				64
-#define EXAMPLE_MAX_CHAR_SIZE    	64
-#define MOUNT_POINT 				"/sdcard"
-#define EXAMPLE_IS_UHS1   			 (CONFIG_EXAMPLE_SDMMC_SPEED_UHS_I_SDR50 || CONFIG_EXAMPLE_SDMMC_SPEED_UHS_I_DDR50)
+#define MAX_CHAR_SIZE 64
+#define MOUNT_POINT "/sdcard"
+#define EXAMPLE_IS_UHS1 (CONFIG_EXAMPLE_SDMMC_SPEED_UHS_I_SDR50 || CONFIG_EXAMPLE_SDMMC_SPEED_UHS_I_DDR50)
 
+//----------------------------
+// CAN Macros
+//----------------------------
+#define COMM_CAN_ID_COUNT 6
+#define COMM_CAN_ID_FISRT COMM_CAN_ID_IMU_ANGLE
 
 //===============================================
 // User type definitions (structures)
 //===============================================
 
 //----------------------------
-//Sensor Readings Structures
+// Sensor Readings Structures
 //----------------------------
 
-//ADC Readings Structures
+/* Warning!!! In case adding more IDs to be logged, there is parameters that needed to be updated!
+
+* 1) (Logging.h) COMM_CAN_ID_COUNT: Should be Updated to total No. of IDs
+* 2) (Logging.h) Add new struct for decoding received ID
+* 3) (logging.h) SDIO_TxBuffer: Add new element for New Sturct
+* 4) (Logging.c) Format in .CSV file @ SDIO_SD_Add_Data & SDIO_SD_Add_Data SDIO_SD_Create_Write_File
+* 6) (main.c)	 Switch case ID filter @ SDIO_Log_Task_init: Similar Case should be added for New ID
+
+*/
+typedef enum	
+{
+	COMM_CAN_ID_IMU_ANGLE = 0x004,
+	COMM_CAN_ID_IMU_ACCEL = 0x005,
+	COMM_CAN_ID_ADC = 0x006,
+	COMM_CAN_ID_PROX_ENCODER = 0x007,
+	COMM_CAN_ID_GPS_LATLONG = 0x008,
+	COMM_CAN_ID_TEMP = 0x009,
+} COMM_CAN_ID_t;
+
+// ADC Readings Structures
 typedef struct
 {
 	uint64_t SUS_1 : 10;
@@ -71,94 +92,95 @@ typedef struct
 
 //----------------------------
 
-//Proximity Encoder Readings Structures
-typedef struct 
+// Proximity Encoder Readings Structures
+typedef struct
 {
-	uint64_t RPM_front_left  : 12;
-	uint64_t RPM_front_right : 12;
-	uint64_t RPM_rear_left 	 : 12;
-	uint64_t RPM_rear_right  : 12;
+	uint64_t RPM_front_left : 11;
+	uint64_t RPM_front_right : 11;
+	uint64_t RPM_rear_left : 11;
+	uint64_t RPM_rear_right : 11;
 
-	uint64_t ENCODER_angle	 : 10;
+	uint64_t ENCODER_angle : 10;
+	uint64_t Speedkmh : 8;
 
 } COMM_message_PROX_encoder_t;
 
 //----------------------------
 
-//IMU Readings Structures
-typedef struct 
+// IMU Readings Structures
+typedef struct
 {
-	uint16_t x;		/* X-axis Value */
-	uint16_t y;		/* Y-axis Value */
-	uint16_t z;		/* Z-axis Value */
+	uint16_t x; /* X-axis Value */
+	uint16_t y; /* Y-axis Value */
+	uint16_t z; /* Z-axis Value */
 } COMM_message_IMU_t;
 
-typedef struct {
+typedef struct
+{
 
 	uint16_t Temp_front_left;
 	uint16_t Temp_front_right;
 	uint16_t Temp_rear_left;
 	uint16_t Temp_rear_right;
 
-
-}COMM_message_Temp_t;
+} COMM_message_Temp_t;
 
 typedef struct
 {
 	float longitude;
 	float latitude;
-}COMM_message_GPS_t;
-
-
+} COMM_message_GPS_t;
 
 //----------------------------
-//SDIO File Configuration Structures
+// SDIO File Configuration Structures
 //----------------------------
 typedef struct
 {
-	char *name;			//Specifies the File name to be configured.
+	char *name; // Specifies the File name to be configured.
 
-	char path[30];		//Specifies the path where the file will be created.
+	char path[50]; // Specifies the path where the file will be created.
 
-	uint8_t type;		//Specifies the file type to be configured.
-						//This parameter must be based on @ref SDIO_File_Types
+	uint8_t type; // Specifies the file type to be configured.
+				  // This parameter must be based on @ref SDIO_File_Types
 
-}SDIO_FileConfig;
+} SDIO_FileConfig;
 
 //----------------------------
-//SD Communication Buffer Structures
+// SD Communication Buffer Structures
 typedef struct
 {
-	const char *string;			//String to be Stored in File
-								//Used mostly in .TXT files and First column in .CSV files
+	const char *string; // String to be Stored in File
+						// Used mostly in .TXT files and First column in .CSV files
 
-	const char *timestamp;		//Timestamp of the Readings to be stored
+	const char *timestamp; // Timestamp of the Readings to be stored
 
-	COMM_message_ADC_t adc;		//ADC Readings to be stored
-								//Used mostly in .CSV files
+	COMM_message_ADC_t adc; // ADC Readings to be stored
+							// Used mostly in .CSV files
 
-	COMM_message_PROX_encoder_t prox_encoder;	//Proximity Encoder Readings to be stored
-												//Used mostly in .CSV files
-	
-	COMM_message_IMU_t imu;		//IMU Readings to be stored
-								//Used mostly in .CSV files
+	COMM_message_PROX_encoder_t prox_encoder; // Proximity Encoder Readings to be stored
+											  // Used mostly in .CSV files
 
-	COMM_message_Temp_t temp;		//Temperature Readings to be stored
-								//Used mostly in .CSV files
+	COMM_message_IMU_t imu_ang; // IMU Angle Readings to be stored
+								// Used mostly in .CSV files
 
-	COMM_message_GPS_t gps;			//GPS Readings to be stored
-								//Used mostly in .CSV files
+	COMM_message_IMU_t imu_accel; // IMU Acceleration Readings to be stored
+								  // Used mostly in .CSV files
 
+	COMM_message_Temp_t temp; // Temperature Readings to be stored
+							  // Used mostly in .CSV files
 
-}SDIO_TxBuffer;
+	COMM_message_GPS_t gps; // GPS Readings to be stored
+							// Used mostly in .CSV files
+
+} SDIO_TxBuffer;
 
 //----------------------------
-//Macros Configuration References
+// Macros Configuration References
 //---------------------------
 
 //@ref SDIO_File_Types
-#define CSV		0
-#define TXT 	1
+#define CSV 0
+#define TXT 1
 
 //===============================================
 // APIs Supported by "LOGGING DRIVER"

@@ -135,8 +135,9 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
     }
     snprintf(file->path, sizeof(file->path), "%s/%s", MOUNT_POINT, file->name);
 
+    // Check if the files exists and Modification Time less than 2 days
     struct stat st;
-    if ((stat(file->path, &st) == 0) && (compare_file_time_days(file->path) <= 2)) // Check if the files exists and Modification Time less than 2 days
+    if ((stat(file->path, &st) == 0) && (compare_file_time_days(file->path) <= 2))
     {
         // Add to the file and don't create new one
         if (SDIO_SD_Add_Data(file, pTxBuffer) != ESP_OK)
@@ -172,8 +173,9 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
                        "PRESSURE_1,PRESSURE_2,"
                        "RPM_FL,RPM_FR,RPM_RL,RPM_RR,"
                        "ENC_ANGLE,"
-                       "IMU_X,IMU_Y,IMU_Z"
-                       "Temp_FL,Temp_FR,Temp_RL,Temp_RR"
+                       "IMU_Ang_X,IMU_Ang_Y,IMU_Ang_Z,"
+                       "IMU_Accel_X,IMU_Accel_Y,IMU_Accel_Z,"
+                       "Temp_FL,Temp_FR,Temp_RL,Temp_RR,"
                        "GPS_Long, GPS_Lat\n");
 
             // Write formatted data to file
@@ -182,6 +184,7 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
                                      "%u,%u,"
                                      "%u,%u,%u,%u,"
                                      "%u,"
+                                     "%u,%u,%u,"
                                      "%u,%u,%u,"
                                      "%u,%u,%u,%u,"
                                      "%f,%f\n",
@@ -202,9 +205,13 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
                                   pTxBuffer->prox_encoder.RPM_rear_right,
                                   pTxBuffer->prox_encoder.ENCODER_angle,
 
-                                  pTxBuffer->imu.x,
-                                  pTxBuffer->imu.y,
-                                  pTxBuffer->imu.z,
+                                  pTxBuffer->imu_ang.x,
+                                  pTxBuffer->imu_ang.y,
+                                  pTxBuffer->imu_ang.z,
+
+                                  pTxBuffer->imu_accel.x,
+                                  pTxBuffer->imu_accel.y,
+                                  pTxBuffer->imu_accel.z,
 
                                   pTxBuffer->temp.Temp_front_left,
                                   pTxBuffer->temp.Temp_front_right,
@@ -274,11 +281,23 @@ esp_err_t SDIO_SD_Add_Data(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer)
             else if (file->type == CSV)
             {
                 // Write formatted data to file
+                fprintf(f, "Timestamp,Label,"
+                           "SUS_1,SUS_2,SUS_3,SUS_4,"
+                           "PRESSURE_1,PRESSURE_2,"
+                           "RPM_FL,RPM_FR,RPM_RL,RPM_RR,"
+                           "ENC_ANGLE,"
+                           "IMU_Ang_X,IMU_Ang_Y,IMU_Ang_Z,"
+                           "IMU_Accel_X,IMU_Accel_Y,IMU_Accel_Z,"
+                           "Temp_FL,Temp_FR,Temp_RL,Temp_RR,"
+                           "GPS_Long, GPS_Lat\n");
+
+                // Write formatted data to file
                 bytewritten = fprintf(f, "%s,%s,"
                                          "%u,%u,%u,%u,"
                                          "%u,%u,"
                                          "%u,%u,%u,%u,"
                                          "%u,"
+                                         "%u,%u,%u,"
                                          "%u,%u,%u,"
                                          "%u,%u,%u,%u,"
                                          "%f,%f\n",
@@ -299,9 +318,13 @@ esp_err_t SDIO_SD_Add_Data(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer)
                                       pTxBuffer->prox_encoder.RPM_rear_right,
                                       pTxBuffer->prox_encoder.ENCODER_angle,
 
-                                      pTxBuffer->imu.x,
-                                      pTxBuffer->imu.y,
-                                      pTxBuffer->imu.z,
+                                      pTxBuffer->imu_ang.x,
+                                      pTxBuffer->imu_ang.y,
+                                      pTxBuffer->imu_ang.z,
+
+                                      pTxBuffer->imu_accel.x,
+                                      pTxBuffer->imu_accel.y,
+                                      pTxBuffer->imu_accel.z,
 
                                       pTxBuffer->temp.Temp_front_left,
                                       pTxBuffer->temp.Temp_front_right,
@@ -355,7 +378,7 @@ esp_err_t SDIO_SD_Read_Data(SDIO_FileConfig *file)
         else
         {
             open_file = file->name; // Assign the name of the opened file
-            char line[EXAMPLE_MAX_CHAR_SIZE];
+            char line[MAX_CHAR_SIZE];
             while (fgets(line, sizeof(line), f))
             {
                 // Strip newline character if present
@@ -491,7 +514,7 @@ esp_err_t SDIO_SD_LOG_CAN_Message(twai_message_t *rx_msg)
 
 /**================================================================
  * @Fn				- compare_file_time_days
- * @breif			- Compares between file last modified time and current time 
+ * @breif			- Compares between file last modified time and current time
  *                  - and outputs difference in Days
  * @param [in]		- path: pointer to path of File to be compared
  * @retval			- Value indicates number of days between current date and Last modified date
