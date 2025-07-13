@@ -126,8 +126,6 @@ esp_err_t SDIO_SD_DeInit(void)
 esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer)
 {
     ret = ESP_OK;
-    fclose(f);
-
     // Check if another file is already opened
     if (open_file != NULL)
     {
@@ -254,16 +252,16 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
 esp_err_t SDIO_SD_Add_Data(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer)
 {
     ret = ESP_OK;
-    if (open_file != NULL)
-    {
-        fclose(f);        // close the previously opened file
-        open_file = NULL; // Reset the open file name
-    }
-
+    
     struct stat st;
     if (stat(file->path, &st) == 0) // Check if the files exists
     {
-        f = fopen(file->path, "a");
+        if (open_file != file->name)
+        {
+            fclose(f);        // close the previously opened file
+            open_file = NULL; // Reset the open file name
+            f = fopen(file->path, "a");
+        }
 
         if (f == NULL)
         {
@@ -286,17 +284,6 @@ esp_err_t SDIO_SD_Add_Data(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer)
             }
             else if (file->type == CSV)
             {
-                // Write formatted data to file
-                fprintf(f, "Timestamp,Label,"
-                           "SUS_1,SUS_2,SUS_3,SUS_4,"
-                           "PRESSURE_1,PRESSURE_2,"
-                           "RPM_FL,RPM_FR,RPM_RL,RPM_RR,"
-                           "ENC_ANGLE,"
-                           "IMU_Ang_X,IMU_Ang_Y,IMU_Ang_Z,"
-                           "IMU_Accel_X,IMU_Accel_Y,IMU_Accel_Z,"
-                           "Temp_FL,Temp_FR,Temp_RL,Temp_RR,"
-                           "GPS_Long, GPS_Lat\n");
-
                 // Write formatted data to file
                 bytewritten = fprintf(f, "%s,%s,"
                                          "%u,%u,%u,%u,"
