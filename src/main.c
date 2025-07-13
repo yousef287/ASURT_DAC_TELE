@@ -298,10 +298,10 @@ void CAN_Receive_Task_init(void *pvParameters) // DONE
 
             if (xQueueSend(CAN_SDIO_queue_Handler, &rx_msg, (TickType_t)10) != pdPASS)
             {
-                // if (SDIO_Log_TaskHandler != NULL)
-                // {
-                //     xTaskNotifyGive(SDIO_Log_TaskHandler); // Notify SDIO task
-                // }
+                if (SDIO_Log_TaskHandler != NULL)
+                {
+                    xTaskNotifyGive(SDIO_Log_TaskHandler); // Notify SDIO task
+                }
             }
         }
         else
@@ -326,7 +326,7 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
     ESP_LOGI(TAG, "SDO_LOG IS WORKING");
 
 
-    //Assign Zero to all elements of SDIO_buffer
+    //Assign Zero to all elements of SDIO_buffer and Log initial Line
     EMPTY_SDIO_BUFFER(SDIO_buffer);
 
     if (SDIO_SD_Create_Write_File(&LOG_CSV, &SDIO_buffer) == ESP_OK)
@@ -339,30 +339,7 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
         ESP_LOGI(TAG, "File Closed Successfully!");
     }
 
-    
-    /*
-        snprintf(LOG_CSV.path, sizeof(LOG_CSV.path), "%s/%s", MOUNT_POINT, LOG_CSV.name);
 
-        // Check if the files exists and Modification Time more than 2 days
-        //if it exists and last modified was more than 2 days
-        //      Increment the name of the file and check again
-        // if it exists and last modified in less than 2 days           |
-        //      Don't change name and add to the already existing file  |   This logic is implemented
-        // if it doesn't exist                                          |   SDIO_SD_Create_Write_File()
-        //      Create file                                             |
-
-        struct stat st;
-        uint8_t Session_Num = 0;
-        while((stat(LOG_CSV.path, &st) == 0) && (compare_file_time_days(LOG_CSV.path) > 2))
-        {
-            //it exists and last modified was more than 2 days
-            Session_Num++;
-            //Update Name and path
-            snprintf(LOG_CSV.name, sizeof(name_buffer), "LOG_Session_%u.CSV", Session_Num);
-            snprintf(LOG_CSV.path, sizeof(LOG_CSV.path), "%s/%s", MOUNT_POINT, LOG_CSV.name);
-        }
-
-     */
     twai_message_t buffer;
     const uint8_t NUM_IDS = COMM_CAN_ID_COUNT;
     uint8_t id_received[NUM_IDS];
@@ -370,10 +347,22 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
 
     while (1)
     {
-        // Wait for notification
-        //ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        //Wait for notification
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
         // 1. Clear buffer and flags
+        memset(&buffer, 0, sizeof(twai_message_t));
+
+        printf("ID = 0x%03lX ", buffer.identifier);
+        printf("Extended? %s ", buffer.extd ? "Yes" : "No");
+        printf("RTR? %s ", buffer.rtr ? "Yes" : "No");
+        printf("DLC = %d\n", buffer.data_length_code);
+        for (int i = 0; i < buffer.data_length_code; i++)
+        {
+            printf("byte[%d] = 0x%02X ", i, buffer.data[i]);
+        }
+        printf("\n");
+            
 
         // TickType_t start = xTaskGetTickCount();
         // TickType_t now = start;
@@ -384,19 +373,19 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
         // // while ((now - start) < period && received_count < NUM_IDS)
         // //{
         //     TickType_t remaining = period - (now - start);
-        //     if (xQueueReceive(CAN_SDIO_queue_Handler, &buffer, portMAX_DELAY))
-        //     {
-        //         // To print the Message Received
-        //         /* printf("ID = 0x%03lX ", buffer.identifier);
-        //         printf("Extended? %s ", buffer.extd ? "Yes" : "No");
-        //         printf("RTR? %s ", buffer.rtr ? "Yes" : "No");
-        //         printf("DLC = %d\n", buffer.data_length_code);
-        //         for (int i = 0; i < buffer.data_length_code; i++)
-        //         {
-        //             printf("byte[%d] = 0x%02X ", i, buffer.data[i]);
-        //         }
-        //         printf("\n");
-        //          */
+            if (xQueueReceive(CAN_SDIO_queue_Handler, &buffer, portMAX_DELAY))
+            {
+                // To print the Message Received
+                 printf("ID = 0x%03lX ", buffer.identifier);
+                printf("Extended? %s ", buffer.extd ? "Yes" : "No");
+                printf("RTR? %s ", buffer.rtr ? "Yes" : "No");
+                printf("DLC = %d\n", buffer.data_length_code);
+                for (int i = 0; i < buffer.data_length_code; i++)
+                {
+                    printf("byte[%d] = 0x%02X ", i, buffer.data[i]);
+                }
+                printf("\n");
+                
         //         /* switch (buffer.identifier) // Check the ID of the message
         //         {
         //         case COMM_CAN_ID_IMU_ANGLE:
@@ -464,10 +453,9 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
         //         {
         //             ESP_LOGI(TAG, "ERROR! : %s is not Created // Appedended", LOG_CSV.name);
         //         }
-        //     }
+            }
         //     // now = xTaskGetTickCount();
         // //}
-        vTaskDelay(pdMS_TO_TICKS(1000));
        
     }
 }
