@@ -20,9 +20,15 @@
  * ================================================================
  *
  * */
+
+// Debug Varibales
 SDIO_FileConfig SDIO_test;
 SDIO_FileConfig SDIO_txt;
-SDIO_TxBuffer buffer;
+SDIO_TxBuffer buffer; 
+SDIO_FileConfig LOG_CSV;
+SDIO_TxBuffer SDIO_buffer;
+
+
 
 /*
  * ================================================================
@@ -99,46 +105,58 @@ void app_main()
         return;
     }
     ESP_LOGI(TAG, "Filesystem mounted");
+
+    //char name_buffer[30] = "LOG_Session.CSV"; // Temp Logging file name
+    LOG_CSV.name = "LOG_Session.CSV";
+    LOG_CSV.type = CSV;
+
+    if (SDIO_SD_Create_Write_File(&LOG_CSV, &SDIO_buffer) == ESP_OK)
+    {
+        ESP_LOGI(TAG, "SDIO.CSV Written Successfully!");
+    }
     
-        SDIO_txt.name = "SDIO.TXT";
-        SDIO_txt.type = TXT;
-        buffer.string = "Hello World line 1\r\nHello World line 2\r\nHello World line 3\r";
-        if (SDIO_SD_Create_Write_File(&SDIO_txt, &buffer) == ESP_OK)
-        {
-            ESP_LOGI(TAG, "SDIO.TXT Written Successfully!");
-        }
+    
 
-        SDIO_test.name = "SDIO.CSV";
-        SDIO_test.type = CSV;
-        buffer.string = "LOG1";
-        buffer.timestamp = "2023-10-01 12:00:00";
-        buffer.adc.SUS_1 = 15;
-        buffer.adc.SUS_2 = 20;
-        buffer.adc.SUS_3 = 25;
-        buffer.adc.SUS_4 = 30;
-        buffer.adc.PRESSURE_1 = 10;
-        buffer.adc.PRESSURE_2 = 15;
-        buffer.prox_encoder.RPM_front_left = 1000;
-        buffer.prox_encoder.RPM_front_right = 1100;
-        buffer.prox_encoder.RPM_rear_left = 1200;
-        buffer.prox_encoder.RPM_rear_right = 1300;
-        buffer.prox_encoder.ENCODER_angle = 45;
-        buffer.imu_accel.x = 100;
-        buffer.imu_accel.y = 200;
-        buffer.imu_accel.z = 300;
 
-        if (SDIO_SD_Create_Write_File(&SDIO_test, &buffer) == ESP_OK)
-        {
-            ESP_LOGI(TAG, "SDIO.CSV Written Successfully!");
-        }
+    SDIO_txt.name = "Test2.TXT";
+    SDIO_txt.type = TXT;
+    buffer.string = "Hello World line 1\r\nHello World line 2\r\nHello World line 3\r";
+    if (SDIO_SD_Create_Write_File(&SDIO_txt, &buffer) == ESP_OK)
+    {
+        ESP_LOGI(TAG, "%s Written Successfully!", SDIO_txt.name);
+    }
 
-        SDIO_SD_Read_Data(&SDIO_txt);
-        SDIO_SD_Read_Data(&SDIO_test);
-    /*    // Append data to the existing files
+    SDIO_test.name = "LOG2.CSV";
+    SDIO_test.type = CSV;
+    buffer.string = "LOG1";
+    buffer.timestamp = "2023-10-01 12:00:00";
+    buffer.adc.SUS_1 = 15;
+    buffer.adc.SUS_2 = 20;
+    buffer.adc.SUS_3 = 25;
+    buffer.adc.SUS_4 = 30;
+    buffer.adc.PRESSURE_1 = 10;
+    buffer.adc.PRESSURE_2 = 15;
+    buffer.prox_encoder.RPM_front_left = 1000;
+    buffer.prox_encoder.RPM_front_right = 1100;
+    buffer.prox_encoder.RPM_rear_left = 1200;
+    buffer.prox_encoder.RPM_rear_right = 1300;
+    buffer.prox_encoder.ENCODER_angle = 45;
+    buffer.imu_accel.x = 100;
+    buffer.imu_accel.y = 200;
+    buffer.imu_accel.z = 300;
+
+    if (SDIO_SD_Create_Write_File(&SDIO_test, &buffer) == ESP_OK)
+    {
+        ESP_LOGI(TAG, "%s Written Successfully!", SDIO_test.name);
+    }
+
+    SDIO_SD_Read_Data(&SDIO_txt);
+    SDIO_SD_Read_Data(&SDIO_test);
+        // Append data to the existing files
         buffer.string = "Hello World line 4\r\nHello World line 5\r\n";
         if (SDIO_SD_Add_Data(&SDIO_txt, &buffer) == ESP_OK)
         {
-            ESP_LOGI(TAG, "SDIO.TXT Appended Successfully!");
+            ESP_LOGI(TAG, "TEST.TXT Appended Successfully!");
         }
 
         buffer.string = "LOG2";
@@ -158,9 +176,9 @@ void app_main()
         buffer.prox_encoder.RPM_rear_right = 1320;
         buffer.prox_encoder.ENCODER_angle = 47;
 
-        buffer.imu.x = 110;
-        buffer.imu.y = 210;
-        buffer.imu.z = 310;
+        buffer.imu_accel.x = 110;
+        buffer.imu_accel.y = 210;
+        buffer.imu_accel.z = 310;
 
         buffer.temp.Temp_front_left = 25;
         buffer.temp.Temp_front_right = 26;
@@ -172,7 +190,7 @@ void app_main()
 
         if (SDIO_SD_Create_Write_File(&SDIO_test, &buffer) == ESP_OK)
         {
-            ESP_LOGI(TAG, "SDIO.CSV Appended Successfully!");
+            ESP_LOGI(TAG, "%s Appended Successfully!", SDIO_test.name);
         }
 
         if (SDIO_SD_Close_file() == ESP_OK)
@@ -183,7 +201,7 @@ void app_main()
         // Read the files again to verify the appended data
         SDIO_SD_Read_Data(&SDIO_txt);
         SDIO_SD_Read_Data(&SDIO_test);
-
+/*
         twai_message_t rx_msg;
         SDIO_SD_LOG_CAN_Message(&rx_msg);
 
@@ -234,7 +252,7 @@ void app_main()
     }
 
     //=============Define Tasks=================//
-    xTaskCreate((TaskFunction_t)SDIO_Log_Task_init, "SDIO_Log_Task", 4096, NULL, (UBaseType_t)4, &SDIO_Log_TaskHandler);
+    //xTaskCreate((TaskFunction_t)SDIO_Log_Task_init, "SDIO_Log_Task", 4096, NULL, (UBaseType_t)4, &SDIO_Log_TaskHandler);
     xTaskCreate((TaskFunction_t)CAN_Receive_Task_init, "CAN_Receive_Task", 4096, NULL, (UBaseType_t)4, &CAN_Receive_TaskHandler);
 #if USE_MQTT
     xTaskCreate(mqtt_sender_task, "mqtt_sender", 4096, telemetry_queue, 4, NULL);
@@ -289,10 +307,10 @@ void CAN_Receive_Task_init(void *pvParameters) // DONE
 
             if (xQueueSend(CAN_SDIO_queue_Handler, &rx_msg, (TickType_t)10) != pdPASS)
             {
-                if (SDIO_Log_TaskHandler != NULL)
-                {
-                    xTaskNotifyGive(SDIO_Log_TaskHandler); // Notify SDIO task
-                }
+                // if (SDIO_Log_TaskHandler != NULL)
+                // {
+                //     xTaskNotifyGive(SDIO_Log_TaskHandler); // Notify SDIO task
+                // }
             }
         }
         else
@@ -315,35 +333,30 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
 
     const char *TAG = "SDIO_Log_Task";
     ESP_LOGI(TAG, "SDO_LOG IS WORKING");
-    char name_buffer[30] = "LOG_Session.CSV"; //Temp Logging file name
-
-    SDIO_FileConfig LOG_CSV;
-    LOG_CSV.name = name_buffer;
-    LOG_CSV.type = CSV;
-    SDIO_TxBuffer SDIO_buffer;
-
-    snprintf(LOG_CSV.path, sizeof(LOG_CSV.path), "%s/%s", MOUNT_POINT, LOG_CSV.name);
-
-    // Check if the files exists and Modification Time more than 2 days
-    //if it exists and last modified was more than 2 days
-    //      Increment the name of the file and check again
-    // if it exists and last modified in less than 2 days           |
-    //      Don't change name and add to the already existing file  |   This logic is implemented
-    // if it doesn't exist                                          |   SDIO_SD_Create_Write_File()
-    //      Create file                                             |
     
-    struct stat st;
-    uint8_t Session_Num = 0;
-    while((stat(LOG_CSV.path, &st) == 0) && (compare_file_time_days(LOG_CSV.path) > 2))
-    {
-        //it exists and last modified was more than 2 days
-        Session_Num++;
-        //Update Name and path
-        snprintf(LOG_CSV.name, sizeof(name_buffer), "LOG_Session_%u.CSV", Session_Num);
+    /*
         snprintf(LOG_CSV.path, sizeof(LOG_CSV.path), "%s/%s", MOUNT_POINT, LOG_CSV.name);
-    }
 
+        // Check if the files exists and Modification Time more than 2 days
+        //if it exists and last modified was more than 2 days
+        //      Increment the name of the file and check again
+        // if it exists and last modified in less than 2 days           |
+        //      Don't change name and add to the already existing file  |   This logic is implemented
+        // if it doesn't exist                                          |   SDIO_SD_Create_Write_File()
+        //      Create file                                             |
 
+        struct stat st;
+        uint8_t Session_Num = 0;
+        while((stat(LOG_CSV.path, &st) == 0) && (compare_file_time_days(LOG_CSV.path) > 2))
+        {
+            //it exists and last modified was more than 2 days
+            Session_Num++;
+            //Update Name and path
+            snprintf(LOG_CSV.name, sizeof(name_buffer), "LOG_Session_%u.CSV", Session_Num);
+            snprintf(LOG_CSV.path, sizeof(LOG_CSV.path), "%s/%s", MOUNT_POINT, LOG_CSV.name);
+        }
+
+     */
     twai_message_t buffer;
     const uint8_t NUM_IDS = COMM_CAN_ID_COUNT;
     uint8_t id_received[NUM_IDS];
@@ -352,7 +365,7 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
     while (1)
     {
         // Wait for notification
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        //ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
         // 1. Clear buffer and flags
         memset(&SDIO_buffer, 0, sizeof(SDIO_buffer));
@@ -362,10 +375,12 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
         TickType_t now = start;
         uint8_t received_count = 0;
 
-        while ((now - start) < period && received_count < NUM_IDS)
-        {
+        
+
+        // while ((now - start) < period && received_count < NUM_IDS)
+        //{
             TickType_t remaining = period - (now - start);
-            if (xQueueReceive(CAN_SDIO_queue_Handler, &buffer, remaining))
+            if (xQueueReceive(CAN_SDIO_queue_Handler, &buffer, portMAX_DELAY))
             {
                 // To print the Message Received
                 /* printf("ID = 0x%03lX ", buffer.identifier);
@@ -378,7 +393,7 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
                 }
                 printf("\n");
                  */
-                switch (buffer.identifier) // Check the ID of the message
+                /* switch (buffer.identifier) // Check the ID of the message
                 {
                 case COMM_CAN_ID_IMU_ANGLE:
                     if (id_received[COMM_CAN_ID_IMU_ANGLE - COMM_CAN_ID_FISRT] == 0)
@@ -436,15 +451,19 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
 
                 default:
                     break;
+                }*/
+               
+               
+                //Log the Buffer on SD card
+                //SDIO_SD_LOG_CAN_Message(&buffer);
+                if (SDIO_SD_Create_Write_File(&LOG_CSV, &SDIO_buffer) != ESP_OK)
+                {
+                    ESP_LOGI(TAG, "ERROR! : %s is not Created // Appedended", LOG_CSV.name);
                 }
             }
-            now = xTaskGetTickCount();
-        }
+            // now = xTaskGetTickCount();
+        //}
 
-        //Log the Buffer on SD card
-        if(SDIO_SD_Create_Write_File(&LOG_CSV, &SDIO_buffer) != ESP_OK)
-        {
-            ESP_LOGI(TAG, "ERROR! : %s is not Created // Appedended", LOG_CSV.name);
-        }
+       
     }
 }
