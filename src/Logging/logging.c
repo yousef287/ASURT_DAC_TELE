@@ -532,3 +532,48 @@ uint16_t compare_file_time_days(const char *path)
     ESP_LOGI("Time Diff", "Diff in days %u", diff_days);
     return (diff_days);
 }
+
+esp_err_t SDIO_SD_log_can_message_to_csv(twai_message_t *msg)
+{
+    static const char *TAG = "CAN_LOG";
+    SDIO_FileConfig SDIO_CAN_CSV;
+
+    SDIO_CAN_CSV.name = "SDIO_CAN.CSV";
+    SDIO_CAN_CSV.type = CSV;
+    // Mount point
+    snprintf(SDIO_CAN_CSV.path, sizeof(SDIO_CAN_CSV.path), "%s/%s", mount_point, SDIO_CAN_CSV.name);
+
+    FILE *f = fopen(SDIO_CAN_CSV.path, "a");  // Open for appending
+    if (f == NULL) {
+        ESP_LOGE(TAG, "Failed to open file: %s", SDIO_CAN_CSV.path);
+        return ESP_FAIL;
+    }
+
+    // Optional: Write CSV header once
+    fprintf(f, "Timestamp,ID,EXTD,RTR,DLC,DATA[0-7]\n");
+    char time_buffer[32];
+
+    if (Time_Sync_get_rtc_time_str(time_buffer, sizeof(time_buffer)) != true)
+    {
+    ESP_LOGE("RTC", "Failed to get time.");
+    strcpy(time_buffer, "XXXXXXXX");
+    }
+
+    // Format and log the message
+    fprintf(f, "%s,0x%03lX,%s,%s,%d",
+            time_buffer,
+            msg->identifier,
+            msg->extd ? "YES" : "NO",
+            msg->rtr ? "YES" : "NO",
+            msg->data_length_code);
+
+    for (int i = 0; i < msg->data_length_code; i++) {
+        fprintf(f, ",0x%02X", msg->data[i]);
+    }
+
+    fprintf(f, "\n");
+    fclose(f);
+
+    ESP_LOGI(TAG, "Logged CAN message to %s", SDIO_CAN_CSV.name);
+    return ESP_OK;
+}

@@ -213,5 +213,6 @@ esp_err_t SDIO_SD_Add_Data(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer);
 esp_err_t SDIO_SD_Read_Data(SDIO_FileConfig *file);
 esp_err_t SDIO_SD_Close_file(void);
 esp_err_t SDIO_SD_LOG_CAN_Message(twai_message_t *rx_msg);
+esp_err_t SDIO_SD_log_can_message_to_csv(twai_message_t *msg);
 uint16_t compare_file_time_days(const char *path);
 #endif
