@@ -136,7 +136,7 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
 
     // Check if the files exists and Modification Time less than 2 days
     struct stat st;
-    if ((stat(file->path, &st) == 0) && (compare_file_time_days(file->path) <= 2))
+    if ((stat(file->path, &st) == 0) && (compare_file_time_days(file->path) <= MAX_DAYS_MODIFIED))
     {
         // Add to the file and don't create new one
         if (SDIO_SD_Add_Data(file, pTxBuffer) != ESP_OK)
@@ -529,6 +529,6 @@ uint16_t compare_file_time_days(const char *path)
     uint64_t diff_seconds = difftime(now, mod_time);
     // Convert to days
     uint16_t diff_days = (int)(diff_seconds / (60 * 60 * 24));
-
+    ESP_LOGI("Time Diff", "Diff in days %u", diff_days);
     return (diff_days);
 }

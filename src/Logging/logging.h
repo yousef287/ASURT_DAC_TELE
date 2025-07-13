@@ -40,10 +40,29 @@
 
 #define SDMMC_BUS_WIDTH_4
 
+#define EMPTY_SDIO_BUFFER(...) 	__VA_ARGS__.string = "Empty Read";\
+								__VA_ARGS__.timestamp = "XXXX-XX-XX XX:XX:XX";\
+								__VA_ARGS__.adc.SUS_1 = 0;\
+								__VA_ARGS__.adc.SUS_2 = 0;\
+								__VA_ARGS__.adc.SUS_3 = 0;\
+								__VA_ARGS__.adc.SUS_4 = 0;\
+								__VA_ARGS__.adc.PRESSURE_1 = 0;\
+								__VA_ARGS__.adc.PRESSURE_2 = 0;\
+								__VA_ARGS__.prox_encoder.RPM_front_left = 0;\
+								__VA_ARGS__.prox_encoder.RPM_front_right = 0;\
+								__VA_ARGS__.prox_encoder.RPM_rear_left = 0;\
+								__VA_ARGS__.prox_encoder.RPM_rear_right = 0;\
+								__VA_ARGS__.prox_encoder.ENCODER_angle = 0;\
+								__VA_ARGS__.imu_accel.x = 0;\
+								__VA_ARGS__.imu_accel.y = 0;\
+								__VA_ARGS__.imu_accel.z = 0;\
+
 
 #define MAX_CHAR_SIZE 64
 #define MOUNT_POINT "/sdcard"
 #define EXAMPLE_IS_UHS1 (CONFIG_EXAMPLE_SDMMC_SPEED_UHS_I_SDR50 || CONFIG_EXAMPLE_SDMMC_SPEED_UHS_I_DDR50)
+
+#define MAX_DAYS_MODIFIED 2
 
 //----------------------------
 // CAN Macros
