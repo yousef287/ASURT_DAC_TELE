@@ -28,8 +28,6 @@ SDIO_TxBuffer buffer;  */
 SDIO_FileConfig LOG_CSV;
 SDIO_TxBuffer SDIO_buffer;
 
-
-
 /*
  * ================================================================
  * 							CAN Config Variables
@@ -131,74 +129,72 @@ void app_main()
     //     snprintf(LOG_CSV.path, sizeof(LOG_CSV.path), "%s/%s", MOUNT_POINT, LOG_CSV.name);
     // }
 
-    
+    /*
+        SDIO_txt.name = "Test2.TXT";
+        SDIO_txt.type = TXT;
+        buffer.string = "Hello World line 1\r\nHello World line 2\r\nHello World line 3\r";
+        if (SDIO_SD_Create_Write_File(&SDIO_txt, &buffer) == ESP_OK)
+        {
+            ESP_LOGI(TAG, "%s Written Successfully!", SDIO_txt.name);
+        }
 
-/*
-    SDIO_txt.name = "Test2.TXT";
-    SDIO_txt.type = TXT;
-    buffer.string = "Hello World line 1\r\nHello World line 2\r\nHello World line 3\r";
-    if (SDIO_SD_Create_Write_File(&SDIO_txt, &buffer) == ESP_OK)
-    {
-        ESP_LOGI(TAG, "%s Written Successfully!", SDIO_txt.name);
-    }
- 
-    LOG_CSV.name = "LOG_1.CSV";
-    LOG_CSV.type = CSV;
-    SDIO_buffer.string = "LOG1";
-    SDIO_buffer.timestamp = "2023-10-01 12:00:00";
-    SDIO_buffer.adc.SUS_1 = 15;
-    SDIO_buffer.adc.SUS_2 = 20;
-    SDIO_buffer.adc.SUS_3 = 25;
-    SDIO_buffer.adc.SUS_4 = 30;
-    SDIO_buffer.adc.PRESSURE_1 = 10;
-    SDIO_buffer.adc.PRESSURE_2 = 15;
-    SDIO_buffer.prox_encoder.RPM_front_left = 1000;
-    SDIO_buffer.prox_encoder.RPM_front_right = 1100;
-    SDIO_buffer.prox_encoder.RPM_rear_left = 1200;
-    SDIO_buffer.prox_encoder.RPM_rear_right = 1300;
-    SDIO_buffer.prox_encoder.ENCODER_angle = 45;
-    SDIO_buffer.imu_accel.x = 100;
-    SDIO_buffer.imu_accel.y = 200;
-    SDIO_buffer.imu_accel.z = 300;
+        LOG_CSV.name = "LOG_1.CSV";
+        LOG_CSV.type = CSV;
+        SDIO_buffer.string = "LOG1";
+        SDIO_buffer.timestamp = "2023-10-01 12:00:00";
+        SDIO_buffer.adc.SUS_1 = 15;
+        SDIO_buffer.adc.SUS_2 = 20;
+        SDIO_buffer.adc.SUS_3 = 25;
+        SDIO_buffer.adc.SUS_4 = 30;
+        SDIO_buffer.adc.PRESSURE_1 = 10;
+        SDIO_buffer.adc.PRESSURE_2 = 15;
+        SDIO_buffer.prox_encoder.RPM_front_left = 1000;
+        SDIO_buffer.prox_encoder.RPM_front_right = 1100;
+        SDIO_buffer.prox_encoder.RPM_rear_left = 1200;
+        SDIO_buffer.prox_encoder.RPM_rear_right = 1300;
+        SDIO_buffer.prox_encoder.ENCODER_angle = 45;
+        SDIO_buffer.imu_accel.x = 100;
+        SDIO_buffer.imu_accel.y = 200;
+        SDIO_buffer.imu_accel.z = 300;
 
-    if (SDIO_SD_Create_Write_File(&LOG_CSV, &SDIO_buffer) == ESP_OK)
-    {
-        ESP_LOGI(TAG, "%s Written Successfully!", LOG_CSV.name);
-    }
+        if (SDIO_SD_Create_Write_File(&LOG_CSV, &SDIO_buffer) == ESP_OK)
+        {
+            ESP_LOGI(TAG, "%s Written Successfully!", LOG_CSV.name);
+        }
 
-    // SDIO_SD_Read_Data(&SDIO_txt);
-    SDIO_SD_Read_Data(&LOG_CSV);
-    
-    //Append data to the existing files
-    buffer.string = "Hello World line 4\r\nHello World line 5\r\n";
-    if (SDIO_SD_Add_Data(&SDIO_txt, &buffer) == ESP_OK)
-    {
-        ESP_LOGI(TAG, "TEST.TXT Appended Successfully!");
-    }
+        // SDIO_SD_Read_Data(&SDIO_txt);
+        SDIO_SD_Read_Data(&LOG_CSV);
 
-    //Assign Zero to all elements of SDIO_buffer
-    EMPTY_SDIO_BUFFER(SDIO_buffer);
-    
-    if (SDIO_SD_Add_Data(&LOG_CSV, &SDIO_buffer) == ESP_OK)
-    {
-        ESP_LOGI(TAG, "%s Appended Successfully!", LOG_CSV.name);
-    }
+        //Append data to the existing files
+        buffer.string = "Hello World line 4\r\nHello World line 5\r\n";
+        if (SDIO_SD_Add_Data(&SDIO_txt, &buffer) == ESP_OK)
+        {
+            ESP_LOGI(TAG, "TEST.TXT Appended Successfully!");
+        }
 
-    if (SDIO_SD_Close_file() == ESP_OK)
-    {
-        ESP_LOGI(TAG, "File Closed Successfully!");
-    }
+        //Assign Zero to all elements of SDIO_buffer
+        EMPTY_SDIO_BUFFER(SDIO_buffer);
 
-    // Read the files again to verify the appended data
-    SDIO_SD_Read_Data(&SDIO_txt);
-    SDIO_SD_Read_Data(&LOG_CSV);
+        if (SDIO_SD_Add_Data(&LOG_CSV, &SDIO_buffer) == ESP_OK)
+        {
+            ESP_LOGI(TAG, "%s Appended Successfully!", LOG_CSV.name);
+        }
 
-    twai_message_t rx_msg;
-    SDIO_SD_LOG_CAN_Message(&rx_msg);
+        if (SDIO_SD_Close_file() == ESP_OK)
+        {
+            ESP_LOGI(TAG, "File Closed Successfully!");
+        }
 
-    // All done, unmount partition and disable SDMMC peripheral
-    if(SDIO_SD_DeInit() == ESP_OK)
-    ESP_LOGI(TAG, "Card unmounted successfully"); */
+        // Read the files again to verify the appended data
+        SDIO_SD_Read_Data(&SDIO_txt);
+        SDIO_SD_Read_Data(&LOG_CSV);
+
+        twai_message_t rx_msg;
+        SDIO_SD_LOG_CAN_Message(&rx_msg);
+
+        // All done, unmount partition and disable SDMMC peripheral
+        if(SDIO_SD_DeInit() == ESP_OK)
+        ESP_LOGI(TAG, "Card unmounted successfully"); */
 
     //==========================================CAN Implementation (DONE)===========================================
 
@@ -212,16 +208,6 @@ void app_main()
     {
         ESP_LOGE("CAN", "successfully started TWAI driver");
     }
-
-    /*
-         twai_message_t tx_msg = {
-            .flags = TWAI_MSG_FLAG_NONE,
-            .identifier = 0x123,
-            .data_length_code = 8,
-            .data = {1,2,3,4,5,6,7,8}
-        };
-        // 3. Transmit a message
-        twai_transmit(&tx_msg, pdMS_TO_TICKS(1000));  */
 
     //==========================================RTOS Implementation (Semaphore can be added)===========================================
 
@@ -245,28 +231,16 @@ void app_main()
     //=============Define Tasks=================//
     xTaskCreate((TaskFunction_t)SDIO_Log_Task_init, "SDIO_Log_Task", 4096, NULL, (UBaseType_t)4, &SDIO_Log_TaskHandler);
     xTaskCreate((TaskFunction_t)CAN_Receive_Task_init, "CAN_Receive_Task", 4096, NULL, (UBaseType_t)3, &CAN_Receive_TaskHandler);
-/* #if USE_MQTT
-    xTaskCreate(mqtt_sender_task, "mqtt_sender", 4096, telemetry_queue, 4, NULL);
-#else
-    xTaskCreate(udp_sender_task, "udp_sender", 4096, telemetry_queue, 4, NULL);
-#endif
-    xTaskCreate(connectivity_monitor_task, "conn_monitor", 4096, NULL, 4, NULL); */
+    /* #if USE_MQTT
+        xTaskCreate(mqtt_sender_task, "mqtt_sender", 4096, telemetry_queue, 4, NULL);
+    #else
+        xTaskCreate(udp_sender_task, "udp_sender", 4096, telemetry_queue, 4, NULL);
+    #endif
+        xTaskCreate(connectivity_monitor_task, "conn_monitor", 4096, NULL, 4, NULL); */
 
     while (1)
     {
-        /*
-                char time_buffer[32];
-                if (Time_Sync_get_rtc_time_str(time_buffer, sizeof(time_buffer)))
-                {
-                    printf("Current time: %s\n", time_buffer);
-                }
-                else
-                {
-                    printf("Failed to get time.\n");
-                }
 
-                vTaskDelay(pdMS_TO_TICKS(1000));
-         */
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
@@ -283,7 +257,7 @@ void CAN_Receive_Task_init(void *pvParameters) // DONE
     {
         if (twai_receive(&rx_msg, pdMS_TO_TICKS(1000)) == ESP_OK)
         {
-            
+
             // Format the message into the string buffer
             xQueueSend(telemetry_queue, &rx_msg, (TickType_t)10);
 
@@ -316,8 +290,7 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
     const char *TAG = "SDIO_Log_Task";
     ESP_LOGI(TAG, "SDO_LOG IS WORKING");
 
-
-    //Assign Zero to all elements of SDIO_buffer and Log initial Line
+    // Assign Zero to all elements of SDIO_buffer and Log initial Line
     EMPTY_SDIO_BUFFER(SDIO_buffer);
 
     if (SDIO_SD_Create_Write_File(&LOG_CSV, &SDIO_buffer) == ESP_OK)
@@ -326,7 +299,6 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
     // if (SDIO_SD_Close_file() == ESP_OK)
     //     ESP_LOGI(TAG, "File Closed Successfully!");
 
-
     twai_message_t buffer;
     const uint8_t NUM_IDS = COMM_CAN_ID_COUNT;
     uint8_t id_received[NUM_IDS];
@@ -334,7 +306,7 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
 
     while (1)
     {
-        //Wait for notification
+        // Wait for notification
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
         // 1. Clear buffer and flags
@@ -344,96 +316,95 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
         TickType_t start = xTaskGetTickCount();
         TickType_t now = start;
         uint8_t received_count = 0;
-        
 
-        // // while ((now - start) < period && received_count < NUM_IDS)
-        // //{
-        //     TickType_t remaining = period - (now - start);
-                if (xQueueReceive(CAN_SDIO_queue_Handler, &buffer, portMAX_DELAY))
+        while ((now - start) < period && received_count < NUM_IDS)
+        {
+            TickType_t remaining = period - (now - start);
+            if (xQueueReceive(CAN_SDIO_queue_Handler, &buffer, remaining))
+            {
+                // To print the Message Received
+                /*  printf("ID = 0x%03lX ", buffer.identifier);
+                printf("Extended? %s ", buffer.extd ? "Yes" : "No");
+                printf("RTR? %s ", buffer.rtr ? "Yes" : "No");
+                printf("DLC = %d\n", buffer.data_length_code);
+                for (int i = 0; i < buffer.data_length_code; i++)
                 {
-                    // To print the Message Received
-                    /*  printf("ID = 0x%03lX ", buffer.identifier);
-                    printf("Extended? %s ", buffer.extd ? "Yes" : "No");
-                    printf("RTR? %s ", buffer.rtr ? "Yes" : "No");
-                    printf("DLC = %d\n", buffer.data_length_code);
-                    for (int i = 0; i < buffer.data_length_code; i++)
-                    {
-                        printf("byte[%d] = 0x%02X ", i, buffer.data[i]);
-                    }
-                    printf("\n");
-                    */
-                    
-                    /* switch (buffer.identifier) // Check the ID of the message
-                    {
-                    case COMM_CAN_ID_IMU_ANGLE:
-                        if (id_received[COMM_CAN_ID_IMU_ANGLE - COMM_CAN_ID_FISRT] == 0)
-                        {
-                            SDIO_buffer.imu_ang = *((COMM_message_IMU_t *)buffer.data);
-                            id_received[COMM_CAN_ID_IMU_ANGLE - COMM_CAN_ID_FISRT] = 1;
-                            received_count++;
-                        }
-                        break;
-
-                    case COMM_CAN_ID_IMU_ACCEL:
-                        if (id_received[COMM_CAN_ID_IMU_ACCEL - COMM_CAN_ID_FISRT] == 0)
-                        {
-                            SDIO_buffer.imu_accel = *((COMM_message_IMU_t *)buffer.data);
-                            id_received[COMM_CAN_ID_IMU_ACCEL - COMM_CAN_ID_FISRT] = 1;
-                            received_count++;
-                        }
-                        break;
-
-                    case COMM_CAN_ID_ADC:
-                        if (id_received[COMM_CAN_ID_ADC - COMM_CAN_ID_FISRT] == 0)
-                        {
-                            SDIO_buffer.adc = *((COMM_message_ADC_t *)buffer.data);
-                            id_received[COMM_CAN_ID_ADC - COMM_CAN_ID_FISRT] = 1;
-                            received_count++;
-                        }
-                        break;
-
-                    case COMM_CAN_ID_PROX_ENCODER:
-                        if (id_received[COMM_CAN_ID_PROX_ENCODER - COMM_CAN_ID_FISRT] == 0)
-                        {
-                            SDIO_buffer.prox_encoder = *((COMM_message_PROX_encoder_t *)buffer.data);
-                            id_received[COMM_CAN_ID_PROX_ENCODER - COMM_CAN_ID_FISRT] = 1;
-                            received_count++;
-                        }
-                        break;
-
-                    case COMM_CAN_ID_GPS_LATLONG:
-                        if (id_received[COMM_CAN_ID_GPS_LATLONG - COMM_CAN_ID_FISRT] == 0)
-                        {
-                            SDIO_buffer.gps = *((COMM_message_GPS_t *)buffer.data);
-                            id_received[COMM_CAN_ID_GPS_LATLONG - COMM_CAN_ID_FISRT] = 1;
-                            received_count++;
-                        }
-                        break;
-
-                    case COMM_CAN_ID_TEMP:
-                        if (id_received[COMM_CAN_ID_TEMP - COMM_CAN_ID_FISRT] == 0)
-                        {
-                            SDIO_buffer.temp = *((COMM_message_Temp_t *)buffer.data);
-                            id_received[COMM_CAN_ID_TEMP - COMM_CAN_ID_FISRT] = 1;
-                            received_count++;
-                        }
-                        break;
-
-                    default:
-                        break;
-                    }*/
-                
-                    //Log the Buffer on SD card
-                    SDIO_SD_log_can_message_to_csv(&buffer);
-
-
-                    // if (SDIO_SD_Create_Write_File(&LOG_CSV, &SDIO_buffer) != ESP_OK)
-                    // {
-                    //     ESP_LOGI(TAG, "ERROR! : %s is not Created // Appedended", LOG_CSV.name);
-                    // }
+                    printf("byte[%d] = 0x%02X ", i, buffer.data[i]);
                 }
-        //      now = xTaskGetTickCount();
-        // }
-       
+                printf("\n");
+                */
+
+                 switch (buffer.identifier) // Check the ID of the message
+                {
+                case COMM_CAN_ID_IMU_ANGLE:
+                    if (id_received[COMM_CAN_ID_IMU_ANGLE - COMM_CAN_ID_FISRT] == 0)
+                    {
+                        SDIO_buffer.imu_ang = *((COMM_message_IMU_t *)buffer.data);
+                        id_received[COMM_CAN_ID_IMU_ANGLE - COMM_CAN_ID_FISRT] = 1;
+                        received_count++;
+                    }
+                    break;
+
+                case COMM_CAN_ID_IMU_ACCEL:
+                    if (id_received[COMM_CAN_ID_IMU_ACCEL - COMM_CAN_ID_FISRT] == 0)
+                    {
+                        SDIO_buffer.imu_accel = *((COMM_message_IMU_t *)buffer.data);
+                        id_received[COMM_CAN_ID_IMU_ACCEL - COMM_CAN_ID_FISRT] = 1;
+                        received_count++;
+                    }
+                    break;
+
+                case COMM_CAN_ID_ADC:
+                    if (id_received[COMM_CAN_ID_ADC - COMM_CAN_ID_FISRT] == 0)
+                    {
+                        SDIO_buffer.adc = *((COMM_message_ADC_t *)buffer.data);
+                        id_received[COMM_CAN_ID_ADC - COMM_CAN_ID_FISRT] = 1;
+                        received_count++;
+                    }
+                    break;
+
+                case COMM_CAN_ID_PROX_ENCODER:
+                    if (id_received[COMM_CAN_ID_PROX_ENCODER - COMM_CAN_ID_FISRT] == 0)
+                    {
+                        SDIO_buffer.prox_encoder = *((COMM_message_PROX_encoder_t *)buffer.data);
+                        id_received[COMM_CAN_ID_PROX_ENCODER - COMM_CAN_ID_FISRT] = 1;
+                        received_count++;
+                    }
+                    break;
+
+                case COMM_CAN_ID_GPS_LATLONG:
+                    if (id_received[COMM_CAN_ID_GPS_LATLONG - COMM_CAN_ID_FISRT] == 0)
+                    {
+                        SDIO_buffer.gps = *((COMM_message_GPS_t *)buffer.data);
+                        id_received[COMM_CAN_ID_GPS_LATLONG - COMM_CAN_ID_FISRT] = 1;
+                        received_count++;
+                    }
+                    break;
+
+                case COMM_CAN_ID_TEMP:
+                    if (id_received[COMM_CAN_ID_TEMP - COMM_CAN_ID_FISRT] == 0)
+                    {
+                        SDIO_buffer.temp = *((COMM_message_Temp_t *)buffer.data);
+                        id_received[COMM_CAN_ID_TEMP - COMM_CAN_ID_FISRT] = 1;
+                        received_count++;
+                    }
+                    break;
+
+                default:
+                    break;
+                }
+            }
+            now = xTaskGetTickCount();
+        }
+
+        // Log the Buffer on SD card
+        //SDIO_SD_log_can_message_to_csv(&buffer);
+
+        if (SDIO_SD_Add_Data(&LOG_CSV, &SDIO_buffer) != ESP_OK)
+            ESP_LOGI(TAG, "ERROR! : %s is not Created // Appedended", LOG_CSV.name);
+        else
+            ESP_LOGI(TAG, "Logged CAN message to %s", LOG_CSV.name);
+
+        
     }
 }

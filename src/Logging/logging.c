@@ -28,8 +28,9 @@ FILE *f = NULL;                         /* File object for SD */
  *
  * */
 static esp_err_t ret;           /* Fatfas functions common result code */
-char *open_file = NULL;         /* Holds the name of Currently opened file */
+static char *open_file = NULL;  /* Holds the name of Currently opened file */
 uint32_t bytewritten, byteread; /* File Write/Read counters */
+uint8_t writes_Num = 0;
 
 /*
  * ================================================================
@@ -134,6 +135,14 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
     }
     snprintf(file->path, sizeof(file->path), "%s/%s", MOUNT_POINT, file->name);
 
+    // Get current Time
+    char time_buffer[32];
+    if (Time_Sync_get_rtc_time_str(time_buffer, sizeof(time_buffer)) != true)
+    {
+        ESP_LOGE("RTC", "Failed to get time.");
+        strcpy(time_buffer, "XXXX-XX-XX XX:XX:XX");
+    }
+
     // Check if the files exists and Modification Time less than 2 days
     struct stat st;
     if ((stat(file->path, &st) == 0) && (compare_file_time_days(file->path) <= MAX_DAYS_MODIFIED))
@@ -151,7 +160,7 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
         if (f == NULL)
         {
             ESP_LOGE("SDIO", "Error in %s Create Unable to Create Path:%s!", file->name, file->path);
-            
+
             return ESP_FAIL; // Failed to open file for writing
         }
         open_file = file->name; // Assign the name of the opened file
@@ -170,6 +179,7 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
         }
         else if (file->type == CSV)
         {
+
             // Write CSV header to file
             fprintf(f, "Timestamp,Label,"
                        "SUS_1,SUS_2,SUS_3,SUS_4,"
@@ -192,7 +202,7 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
                                      "%u,%u,%u,%u,"
                                      "%f,%f\n",
 
-                                  pTxBuffer->timestamp,
+                                  time_buffer,
                                   pTxBuffer->string,
 
                                   pTxBuffer->adc.SUS_1,
@@ -246,13 +256,13 @@ esp_err_t SDIO_SD_Create_Write_File(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuf
  * @retval			- Value indicates the States of SD Card (Anything other that ESP_OK is an Error)
  * Note				- For pTxBuffer: .TXT File Types Config -> String only
  * 									 .CSV File Types Config -> f_printf format
- * Warning!			- Function don't close file to allow for continous Data Storing
+ * Warning!			- Function close file to allow for continous Data Storing preiodicly after 7 writes
  * 					- Must close file manually using ((SDIO_SD_Close_file)) after last use
  */
 esp_err_t SDIO_SD_Add_Data(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer)
 {
     ret = ESP_OK;
-    
+
     struct stat st;
     if (stat(file->path, &st) == 0) // Check if the files exists
     {
@@ -269,6 +279,14 @@ esp_err_t SDIO_SD_Add_Data(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer)
         }
         else
         {
+            // Get current Time
+            char time_buffer[32];
+            if (Time_Sync_get_rtc_time_str(time_buffer, sizeof(time_buffer)) != true)
+            {
+                ESP_LOGE("RTC", "Failed to get time.");
+                strcpy(time_buffer, "XXXXXXXX");
+            }
+
             open_file = file->name; // Assign the name of the opened file
 
             // Check if file type is .TXT or .CSV
@@ -295,7 +313,7 @@ esp_err_t SDIO_SD_Add_Data(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer)
                                          "%u,%u,%u,%u,"
                                          "%f,%f\n",
 
-                                      pTxBuffer->timestamp,
+                                      time_buffer,
                                       pTxBuffer->string,
 
                                       pTxBuffer->adc.SUS_1,
@@ -332,6 +350,17 @@ esp_err_t SDIO_SD_Add_Data(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer)
                     ret = ESP_ERR_NOT_FINISHED;
                     return ret; // Failed to write to file
                 }
+            }
+
+            if (writes_Num >= MAX_WRITES)
+            {
+                fflush(f); // Push buffer to disk
+                fclose(f); // Optional but safer after each batch
+                open_file = NULL;
+            }
+            else
+            {
+                writes_Num++;
             }
         }
     }
@@ -543,8 +572,9 @@ esp_err_t SDIO_SD_log_can_message_to_csv(twai_message_t *msg)
     // Mount point
     snprintf(SDIO_CAN_CSV.path, sizeof(SDIO_CAN_CSV.path), "%s/%s", mount_point, SDIO_CAN_CSV.name);
 
-    FILE *f = fopen(SDIO_CAN_CSV.path, "a");  // Open for appending
-    if (f == NULL) {
+    FILE *f = fopen(SDIO_CAN_CSV.path, "a"); // Open for appending
+    if (f == NULL)
+    {
         ESP_LOGE(TAG, "Failed to open file: %s", SDIO_CAN_CSV.path);
         return ESP_FAIL;
     }
@@ -555,8 +585,8 @@ esp_err_t SDIO_SD_log_can_message_to_csv(twai_message_t *msg)
 
     if (Time_Sync_get_rtc_time_str(time_buffer, sizeof(time_buffer)) != true)
     {
-    ESP_LOGE("RTC", "Failed to get time.");
-    strcpy(time_buffer, "XXXXXXXX");
+        ESP_LOGE("RTC", "Failed to get time.");
+        strcpy(time_buffer, "XXXXXXXX");
     }
 
     // Format and log the message
@@ -567,7 +597,8 @@ esp_err_t SDIO_SD_log_can_message_to_csv(twai_message_t *msg)
             msg->rtr ? "YES" : "NO",
             msg->data_length_code);
 
-    for (int i = 0; i < msg->data_length_code; i++) {
+    for (int i = 0; i < msg->data_length_code; i++)
+    {
         fprintf(f, ",0x%02X", msg->data[i]);
     }
 
