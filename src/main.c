@@ -108,7 +108,7 @@ void app_main()
     LOG_CSV.name = name_buffer;
     LOG_CSV.type = CSV;
 
-    // snprintf(LOG_CSV.path, sizeof(LOG_CSV.path), "%s/%s", MOUNT_POINT, LOG_CSV.name);
+    snprintf(LOG_CSV.path, sizeof(LOG_CSV.path), "%s/%s", MOUNT_POINT, LOG_CSV.name);
 
     // // Check if the files exists and Modification Time more than 2 days
     // //if it exists and last modified was more than 2 days
@@ -118,17 +118,18 @@ void app_main()
     // // if it doesn't exist                                          |   SDIO_SD_Create_Write_File()
     // //      Create file                                             |
 
-    // struct stat st;
-    // uint8_t Session_Num = 0;
-    // while((stat(LOG_CSV.path, &st) == 0) && (compare_file_time_days(LOG_CSV.path) > MAX_DAYS_MODIFIED))
-    // {
-    //     //it exists and last modified was more than 2 days
-    //     Session_Num++;
-    //     //Update Name and path
-    //     snprintf(name_buffer, sizeof(name_buffer), "LOG_%u.CSV", Session_Num);
-    //     snprintf(LOG_CSV.path, sizeof(LOG_CSV.path), "%s/%s", MOUNT_POINT, LOG_CSV.name);
-    // }
+    struct stat st;
+    uint8_t Session_Num = 0;
+    while((stat(LOG_CSV.path, &st) == 0) && (compare_file_time_days(LOG_CSV.path) > MAX_DAYS_MODIFIED))
+    {
+        //it exists and last modified was more than 2 days
+        Session_Num++;
+        //Update Name and path
+        snprintf(name_buffer, sizeof(name_buffer), "LOG_%u.CSV", Session_Num);
+        snprintf(LOG_CSV.path, sizeof(LOG_CSV.path), "%s/%s", MOUNT_POINT, LOG_CSV.name);
+    }
 
+    //@debug SDIO
     /*
         SDIO_txt.name = "Test2.TXT";
         SDIO_txt.type = TXT;
@@ -284,8 +285,8 @@ void CAN_Receive_Task_init(void *pvParameters) // DONE
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
-void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with sensor format
-{                                           // Add filter for ID
+void SDIO_Log_Task_init(void *pvParameters) // WORKS! Needs testing
+{                                           
 
     const char *TAG = "SDIO_Log_Task";
     ESP_LOGI(TAG, "SDO_LOG IS WORKING");
@@ -322,6 +323,7 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
             TickType_t remaining = period - (now - start);
             if (xQueueReceive(CAN_SDIO_queue_Handler, &buffer, remaining))
             {
+                //@debug SDIO
                 // To print the Message Received
                 /*  printf("ID = 0x%03lX ", buffer.identifier);
                 printf("Extended? %s ", buffer.extd ? "Yes" : "No");
@@ -398,6 +400,7 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! but Need Integration with 
         }
 
         // Log the Buffer on SD card
+        //@debug SDIO
         //SDIO_SD_log_can_message_to_csv(&buffer);
 
         if (SDIO_SD_Add_Data(&LOG_CSV, &SDIO_buffer) != ESP_OK)
