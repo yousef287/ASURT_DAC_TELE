@@ -71,8 +71,8 @@ void app_main()
 {
     //==========================================WIFI Implementation (DONE)===========================================
     // ESP_ERROR_CHECK(wifi_init("Mi A2", "min@fathy2004"));
-    // ESP_ERROR_CHECK(wifi_init("Belal's A34", "password"));
-    ESP_ERROR_CHECK(wifi_init("Fathy WIFI", "Min@F@thy.2004$$"));
+    ESP_ERROR_CHECK(wifi_init("Belal's A34", "password"));
+    // ESP_ERROR_CHECK(wifi_init("Fathy WIFI", "Min@F@thy.2004$$"));
 
     /* Wait until connected */
     xEventGroupWaitBits(wifi_event_group(), WIFI_CONNECTED_BIT,
@@ -104,7 +104,7 @@ void app_main()
     }
     ESP_LOGI(TAG, "Filesystem mounted");
 
-    char name_buffer[12] = "CAN_0.CSV";
+    char name_buffer[12] = "LOG_0.CSV";
     LOG_CSV.name = name_buffer;
     LOG_CSV.type = CSV;
 
@@ -120,11 +120,11 @@ void app_main()
 
     struct stat st;
     uint8_t Session_Num = 0;
-    while((stat(LOG_CSV.path, &st) == 0) && (compare_file_time_days(LOG_CSV.path) > MAX_DAYS_MODIFIED))
+    while ((stat(LOG_CSV.path, &st) == 0) && (compare_file_time_days(LOG_CSV.path) > MAX_DAYS_MODIFIED))
     {
-        //it exists and last modified was more than 2 days
+        // it exists and last modified was more than 2 days
         Session_Num++;
-        //Update Name and path
+        // Update Name and path
         snprintf(name_buffer, sizeof(name_buffer), "LOG_%u.CSV", Session_Num);
         snprintf(LOG_CSV.path, sizeof(LOG_CSV.path), "%s/%s", MOUNT_POINT, LOG_CSV.name);
     }
@@ -230,14 +230,14 @@ void app_main()
     }
 
     //=============Define Tasks=================//
-    xTaskCreate((TaskFunction_t)SDIO_Log_Task_init, "SDIO_Log_Task", 4096, NULL, (UBaseType_t)4, &SDIO_Log_TaskHandler);
-    xTaskCreate((TaskFunction_t)CAN_Receive_Task_init, "CAN_Receive_Task", 4096, NULL, (UBaseType_t)3, &CAN_Receive_TaskHandler);
-    /* #if USE_MQTT
-        xTaskCreate(mqtt_sender_task, "mqtt_sender", 4096, telemetry_queue, 4, NULL);
+    xTaskCreatePinnedToCore((TaskFunction_t)SDIO_Log_Task_init, "SDIO_Log_Task", 4096, NULL, (UBaseType_t)4, &SDIO_Log_TaskHandler, 0);
+    xTaskCreatePinnedToCore((TaskFunction_t)CAN_Receive_Task_init, "CAN_Receive_Task", 4096, NULL, (UBaseType_t)3, &CAN_Receive_TaskHandler, 0);
+    #if USE_MQTT
+        xTaskCreatePinnedToCore(mqtt_sender_task, "mqtt_sender", 4096, telemetry_queue, 4, NULL, 1);
     #else
-        xTaskCreate(udp_sender_task, "udp_sender", 4096, telemetry_queue, 4, NULL);
+        xTaskCreatePinnedToCore(udp_sender_task, "udp_sender", 4096, telemetry_queue, 4, NULL, 1);
     #endif
-        xTaskCreate(connectivity_monitor_task, "conn_monitor", 4096, NULL, 4, NULL); */
+        xTaskCreatePinnedToCore(connectivity_monitor_task, "conn_monitor", 4096, NULL, 4, NULL, 1);
 
     while (1)
     {
@@ -286,7 +286,7 @@ void CAN_Receive_Task_init(void *pvParameters) // DONE
     }
 }
 void SDIO_Log_Task_init(void *pvParameters) // WORKS! Needs testing
-{                                           
+{
 
     const char *TAG = "SDIO_Log_Task";
     ESP_LOGI(TAG, "SDO_LOG IS WORKING");
@@ -336,7 +336,7 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! Needs testing
                 printf("\n");
                 */
 
-                 switch (buffer.identifier) // Check the ID of the message
+                switch (buffer.identifier) // Check the ID of the message
                 {
                 case COMM_CAN_ID_IMU_ANGLE:
                     if (id_received[COMM_CAN_ID_IMU_ANGLE - COMM_CAN_ID_FISRT] == 0)
@@ -401,13 +401,36 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! Needs testing
 
         // Log the Buffer on SD card
         //@debug SDIO
-        //SDIO_SD_log_can_message_to_csv(&buffer);
+        // SDIO_SD_log_can_message_to_csv(&buffer);
 
         if (SDIO_SD_Add_Data(&LOG_CSV, &SDIO_buffer) != ESP_OK)
-            ESP_LOGI(TAG, "ERROR! : %s is not Created // Appedended", LOG_CSV.name);
-        else
-            ESP_LOGI(TAG, "Logged CAN message to %s", LOG_CSV.name);
+        {
+            esp_err_t ret;
+            ret = SDIO_SD_Init();
 
-        
+            if (ret != ESP_OK)
+            {
+                ESP_LOGI(TAG, "ERROR! : %s is not Created // Appedended", LOG_CSV.name);
+                SDIO_SD_DeInit();
+                ret = SDIO_SD_Init();
+                if (ret == ESP_FAIL)
+                {
+                    ESP_LOGE(TAG, "Failed to mount filesystem. "
+                                  "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
+                }
+                else
+                {
+                    ESP_LOGE(TAG, "Failed to initialize the card (%s). "
+                                  "Make sure SD card lines have pull-up resistors in place.",
+                             esp_err_to_name(ret));
+                }
+            }
+            else
+                ESP_LOGI(TAG, "Filesystem mounted");
+        }
+        else
+        {
+            ESP_LOGI(TAG, "Logged CAN message to %s", LOG_CSV.name);
+        }
     }
 }
