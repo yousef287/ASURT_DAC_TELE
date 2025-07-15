@@ -111,7 +111,8 @@ esp_err_t SDIO_SD_Init(void)
 esp_err_t SDIO_SD_DeInit(void)
 {
     ret = ESP_OK;
-    fclose(f);
+    if(open_file != NULL)
+        fclose(f);
     ret = esp_vfs_fat_sdcard_unmount(mount_point, card);
     return ret;
 }
@@ -353,9 +354,16 @@ esp_err_t SDIO_SD_Add_Data(SDIO_FileConfig *file, SDIO_TxBuffer *pTxBuffer)
                 }
             }
 
-            fflush(f); // Push buffer to disk
-            fclose(f); // Optional but safer after each batch
-            open_file = NULL;
+            if (writes_Num >= MAX_WRITES)
+            {
+                fflush(f); // Push buffer to disk
+                fclose(f); // Optional but safer after each batch
+                open_file = NULL;
+            }
+            else
+            {
+                writes_Num++;
+            }
         }
     }
     else

@@ -228,16 +228,16 @@ void app_main()
         ESP_LOGE("RTOS", "Unable to Create Structure Queue");
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
-
+ 
     //=============Define Tasks=================//
     xTaskCreatePinnedToCore((TaskFunction_t)SDIO_Log_Task_init, "SDIO_Log_Task", 4096, NULL, (UBaseType_t)4, &SDIO_Log_TaskHandler, 0);
     xTaskCreatePinnedToCore((TaskFunction_t)CAN_Receive_Task_init, "CAN_Receive_Task", 4096, NULL, (UBaseType_t)3, &CAN_Receive_TaskHandler, 0);
     #if USE_MQTT
-        xTaskCreatePinnedToCore(mqtt_sender_task, "mqtt_sender", 4096, telemetry_queue, 4, NULL, 1);
+        xTaskCreatePinnedToCore(mqtt_sender_task, "mqtt_sender", 4096, telemetry_queue, 3, NULL, 1);
     #else
-        xTaskCreatePinnedToCore(udp_sender_task, "udp_sender", 4096, telemetry_queue, 4, NULL, 1);
+        xTaskCreatePinnedToCore(udp_sender_task, "udp_sender", 4096, telemetry_queue, 3, NULL, 1);
     #endif
-        xTaskCreatePinnedToCore(connectivity_monitor_task, "conn_monitor", 4096, NULL, 4, NULL, 1);
+        xTaskCreatePinnedToCore(connectivity_monitor_task, "conn_monitor", 4096, NULL, 3, NULL, 1);
 
     while (1)
     {
@@ -406,6 +406,7 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! Needs testing
         if (SDIO_SD_Add_Data(&LOG_CSV, &SDIO_buffer) != ESP_OK)
         {
             esp_err_t ret;
+            SDIO_SD_DeInit();
             ret = SDIO_SD_Init();
 
             if (ret != ESP_OK)
