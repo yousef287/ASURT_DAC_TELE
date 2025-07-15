@@ -1,89 +1,268 @@
-import threading
-import socket
+"""
+GUI dashboard for MQTT telemetry.
+
+This script subscribes to the MQTT topic used by the ESP32 and decodes
+binary CAN frames published by the firmware. The field layout mirrors
+the decoding done in main.c when logging CAN data to the SD card.
+"""
+
 import ssl
+import struct
+import threading
+import time
+import socket
 import tkinter as tk
-from tkinter.scrolledtext import ScrolledText
+from tkinter import ttk, messagebox
 
 import paho.mqtt.client as mqtt
 
-# MQTT configuration - mirrors telemetry_config.h
-MQTT_HOST = "5aeaff002e7c423299c2d92361292d54.s1.eu.hivemq.cloud"
-MQTT_PORT = 8883
-MQTT_USER = "yousef"
-MQTT_PASS = "Yousef123"
-MQTT_TOPIC = "com/yousef/esp32/data"
 
-# UDP configuration - listen on all interfaces
-UDP_PORT = 19132
+# Default connection parameters (match telemetry_config.h)
+DEFAULTS = {
+    "broker": "5aeaff002e7c423299c2d92361292d54.s1.eu.hivemq.cloud",
+    "port": 8883,
+    "username": "yousef",
+    "password": "Yousef123",
+    "topic": "com/yousef/esp32/data",
+}
+
+# CAN message identifiers (see logging.h)
+COMM_CAN_ID_IMU_ANGLE = 0x004
+COMM_CAN_ID_IMU_ACCEL = 0x005
+COMM_CAN_ID_ADC = 0x006
+COMM_CAN_ID_PROX_ENCODER = 0x007
+COMM_CAN_ID_GPS_LATLONG = 0x008
+COMM_CAN_ID_TEMP = 0x009
+
+FIELDS = [
+    "Speed (km/h)",
+    "RPM",
+    "Accelerator (%)",
+    "Brake Pedal (%)",
+    "Encoder",
+    "Temperature (°C)",
+    "Battery (%)",
+    "Longitude",
+    "Latitude",
+    "FR Wheel Speed",
+    "FL Wheel Speed",
+    "BR Wheel Speed",
+    "BL Wheel Speed",
+    "Lateral G (g)",
+    "Longitudinal G (g)",
+]
+
+# struct layout of twai_message_t published by ESP32
+#  <I  flags
+#  <I  identifier
+#  <B  data_length_code
+#  3x padding
+#  8s data
+#  <I  timestamp (ignored)
+TWAI_STRUCT = struct.Struct("<IIB3x8sI")
 
 
-def format_data(data: bytes) -> str:
-    """Return a readable representation of received data."""
-    try:
-        text = data.decode().strip()
-        if text:
-            return text
-    except UnicodeDecodeError:
-        pass
-    return data.hex()
+class Dashboard(ttk.Frame):
+    def __init__(self, master: tk.Tk):
+        super().__init__(master)
+        self.vars = {}
+        for row, label in enumerate(FIELDS):
+            ttk.Label(self, text=label + ":", width=20, anchor="w").grid(row=row, column=0, sticky="w", padx=5, pady=2)
+            var = tk.StringVar(value="--")
+            ttk.Label(self, textvariable=var, width=15, anchor="w", relief="sunken", background="white").grid(row=row, column=1, sticky="w", padx=5, pady=2)
+            self.vars[label] = var
+        for i in range(len(FIELDS)):
+            self.rowconfigure(i, weight=0)
+        self.columnconfigure(1, weight=1)
+
+    def update_field(self, field: str, value) -> None:
+        if field in self.vars:
+            self.vars[field].set(str(value))
 
 
-class ReceiverGUI:
+class TelemetryApp:
     def __init__(self, master: tk.Tk):
         self.master = master
-        master.title("Telemetry Receiver")
-        self.text = ScrolledText(master, width=80, height=20)
-        self.text.pack(fill=tk.BOTH, expand=True)
+        master.title("MQTT Telemetry Dashboard")
+        master.protocol("WM_DELETE_WINDOW", self.close)
 
-    def display(self, source: str, message: str) -> None:
-        self.text.insert(tk.END, f"[{source}] {message}\n")
-        self.text.see(tk.END)
+        self.settings_frame = ttk.Frame(master)
+        self.settings_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
+        self.broker_var = tk.StringVar(value=DEFAULTS["broker"])
+        self.port_var = tk.IntVar(value=DEFAULTS["port"])
+        self.user_var = tk.StringVar(value=DEFAULTS["username"])
+        self.pass_var = tk.StringVar(value=DEFAULTS["password"])
+        self.topic_var = tk.StringVar(value=DEFAULTS["topic"])
 
-class MqttListener:
-    def __init__(self, gui: ReceiverGUI):
-        self.gui = gui
-        self.client = mqtt.Client()
-        self.client.username_pw_set(MQTT_USER, MQTT_PASS)
-        self.client.tls_set_context(ssl.create_default_context())
-        self.client.on_connect = self.on_connect
-        self.client.on_message = self.on_message
-        self.client.connect(MQTT_HOST, MQTT_PORT)
+        ttk.Label(self.settings_frame, text="Broker").grid(row=0, column=0, sticky="w")
+        ttk.Entry(self.settings_frame, textvariable=self.broker_var, width=40).grid(row=0, column=1, sticky="ew")
+        ttk.Label(self.settings_frame, text="Port").grid(row=1, column=0, sticky="w")
+        ttk.Entry(self.settings_frame, textvariable=self.port_var).grid(row=1, column=1, sticky="ew")
+        ttk.Label(self.settings_frame, text="Username").grid(row=2, column=0, sticky="w")
+        ttk.Entry(self.settings_frame, textvariable=self.user_var).grid(row=2, column=1, sticky="ew")
+        ttk.Label(self.settings_frame, text="Password").grid(row=3, column=0, sticky="w")
+        ttk.Entry(self.settings_frame, textvariable=self.pass_var, show="*").grid(row=3, column=1, sticky="ew")
+        ttk.Label(self.settings_frame, text="Topic").grid(row=4, column=0, sticky="w")
+        ttk.Entry(self.settings_frame, textvariable=self.topic_var, width=40).grid(row=4, column=1, sticky="ew")
 
+        self.connect_btn = ttk.Button(self.settings_frame, text="Connect", command=self.connect)
+        self.connect_btn.grid(row=5, column=1, sticky="e", pady=(5, 0))
+
+        self.status_var = tk.StringVar(value="Disconnected")
+        ttk.Label(self.settings_frame, textvariable=self.status_var, foreground="blue").grid(row=6, column=0, columnspan=2, sticky="w", pady=(5, 0))
+
+        for i in range(2):
+            self.settings_frame.columnconfigure(i, weight=1)
+
+        self.client = None
+        self.dashboard = None
+        self.decoder_lock = threading.Lock()
+        self.latest = {field: "--" for field in FIELDS}
+
+    # MQTT callbacks -------------------------------------------------------
     def on_connect(self, client, userdata, flags, rc, properties=None):
-        client.subscribe(MQTT_TOPIC)
+        if rc == 0:
+            client.subscribe(self.topic_var.get())
+            self.status_var.set("Connected")
+            self.master.after(0, self.show_dashboard)
+        else:
+            self.status_var.set(f"Connect failed ({rc})")
+            self.connect_btn.config(state="normal")
+
+    def on_disconnect(self, client, userdata, rc, properties=None):
+        self.status_var.set("Disconnected")
+        self.connect_btn.config(state="normal")
 
     def on_message(self, client, userdata, msg):
-        text = format_data(msg.payload)
-        self.gui.display("MQTT", text)
+        try:
+            identifier, data = self.decode_twai_message(msg.payload)
+            self.process_can_frame(identifier, data)
+        except Exception as exc:
+            print(f"Failed to decode frame: {exc}")
 
-    def start(self):
+    # MQTT management ------------------------------------------------------
+    def connect(self) -> None:
+        broker = self.broker_var.get().strip()
+        port = int(self.port_var.get())
+        if not broker or port <= 0:
+            messagebox.showerror("Error", "Invalid broker/port")
+            return
+
+        self.status_var.set("Connecting...")
+        self.connect_btn.config(state="disabled")
+        self.master.update()
+
+        self.client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+        if self.user_var.get():
+            self.client.username_pw_set(self.user_var.get(), self.pass_var.get())
+        ctx = ssl.create_default_context()
+        self.client.tls_set_context(ctx)
+        self.client.on_connect = self.on_connect
+        self.client.on_message = self.on_message
+        self.client.on_disconnect = self.on_disconnect
+        self.client.connect(broker, port, keepalive=60)
         self.client.loop_start()
 
+        # wait briefly for connection
+        start = time.time()
+        while self.client.is_connected() is False and (time.time() - start) < 5:
+            time.sleep(0.1)
+            self.master.update()
+        if not self.client.is_connected():
+            self.status_var.set("Connection timeout")
+            self.connect_btn.config(state="normal")
 
-class UdpListener(threading.Thread):
-    def __init__(self, gui: ReceiverGUI):
-        super().__init__(daemon=True)
-        self.gui = gui
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind(("", UDP_PORT))
+    def disconnect(self) -> None:
+        if self.client:
+            self.client.loop_stop()
+            self.client.disconnect()
+            self.client = None
 
-    def run(self):
-        while True:
-            data, addr = self.sock.recvfrom(4096)
-            text = format_data(data)
-            self.gui.display(f"UDP {addr[0]}:{addr[1]}", text)
+    def close(self) -> None:
+        self.disconnect()
+        self.master.destroy()
+
+    # Dashboard ------------------------------------------------------------
+    def show_dashboard(self) -> None:
+        if self.dashboard:
+            self.dashboard.destroy()
+        self.settings_frame.pack_forget()
+        self.dashboard = Dashboard(self.master)
+        self.dashboard.pack(fill="both", expand=True, padx=10, pady=10)
+        ttk.Button(self.dashboard, text="Back", command=self.back).grid(row=0, column=2, sticky="e", padx=5, pady=2)
+
+    def back(self) -> None:
+        self.disconnect()
+        if self.dashboard:
+            self.dashboard.destroy()
+            self.dashboard = None
+        self.settings_frame.pack(fill="both", expand=True)
+
+    # CAN frame handling ---------------------------------------------------
+    def decode_twai_message(self, payload: bytes):
+        if len(payload) < TWAI_STRUCT.size:
+            raise ValueError("payload too short")
+        flags, identifier, dlc, data, _timestamp = TWAI_STRUCT.unpack_from(payload)
+        return identifier, data[:dlc]
+
+    def process_can_frame(self, identifier: int, data: bytes) -> None:
+        with self.decoder_lock:
+            if identifier == COMM_CAN_ID_PROX_ENCODER:
+                val = int.from_bytes(data.ljust(8, b"\x00"), "little")
+                rpm_fl = val & 0x7FF
+                rpm_fr = (val >> 11) & 0x7FF
+                rpm_rl = (val >> 22) & 0x7FF
+                rpm_rr = (val >> 33) & 0x7FF
+                enc = (val >> 44) & 0x3FF
+                speed = (val >> 54) & 0xFF
+
+                self.latest["Speed (km/h)"] = speed
+                self.latest["FR Wheel Speed"] = rpm_fr
+                self.latest["FL Wheel Speed"] = rpm_fl
+                self.latest["BR Wheel Speed"] = rpm_rr
+                self.latest["BL Wheel Speed"] = rpm_rl
+                self.latest["Encoder"] = enc
+                self.latest["RPM"] = (rpm_fl + rpm_fr + rpm_rl + rpm_rr) // 4
+
+            elif identifier == COMM_CAN_ID_ADC:
+                val = int.from_bytes(data.ljust(8, b"\x00"), "little")
+                sus1 = val & 0x3FF
+                sus2 = (val >> 10) & 0x3FF
+                sus3 = (val >> 20) & 0x3FF
+                sus4 = (val >> 30) & 0x3FF
+                pressure1 = (val >> 40) & 0x3FF
+                pressure2 = (val >> 50) & 0x3FF
+                self.latest["Accelerator (%)"] = pressure1
+                self.latest["Brake Pedal (%)"] = pressure2
+                self.latest["Battery (%)"] = sus1
+
+            elif identifier == COMM_CAN_ID_GPS_LATLONG:
+                if len(data) >= 8:
+                    lon, lat = struct.unpack_from("<ff", data)
+                    self.latest["Longitude"] = f"{lon:.5f}"
+                    self.latest["Latitude"] = f"{lat:.5f}"
+
+            elif identifier == COMM_CAN_ID_IMU_ACCEL:
+                if len(data) >= 6:
+                    x, y, _z = struct.unpack_from("<hhh", data)
+                    self.latest["Longitudinal G (g)"] = x
+                    self.latest["Lateral G (g)"] = y
+
+            elif identifier == COMM_CAN_ID_TEMP:
+                if len(data) >= 8:
+                    tfl, tfr, trl, trr = struct.unpack_from("<hhhh", data)
+                    temp = (tfl + tfr + trl + trr) / 4
+                    self.latest["Temperature (°C)"] = f"{temp:.1f}"
+
+            # Update dashboard
+            if self.dashboard:
+                for field, value in self.latest.items():
+                    self.dashboard.update_field(field, value)
 
 
-def main():
-    root = tk.Tk()
-    gui = ReceiverGUI(root)
-    mqtt_listener = MqttListener(gui)
-    mqtt_listener.start()
-    udp_listener = UdpListener(gui)
-    udp_listener.start()
-    root.mainloop()
-
-
+# ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    main()
+    root = tk.Tk()
+    app = TelemetryApp(root)
+    root.mainloop()
