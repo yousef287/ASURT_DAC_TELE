@@ -52,14 +52,11 @@ FIELDS = [
     "Longitudinal G (g)",
 ]
 
-# struct layout of twai_message_t published by ESP32
-#  <I  flags
-#  <I  identifier
-#  <B  data_length_code
-#  3x padding
-#  8s data
-#  <I  timestamp (ignored)
-TWAI_STRUCT = struct.Struct("<IIB3x8sI")
+# twai_message_t frame layouts. Different ESP-IDF versions pack the
+# structure slightly differently, so support both 24-byte (with padding)
+# and 21-byte variants.
+TWAI_STRUCT_PAD = struct.Struct("<IIB3x8sI")  # 24 bytes
+TWAI_STRUCT_NOPAD = struct.Struct("<IIB8sI")   # 21 bytes
 
 
 class Dashboard(ttk.Frame):
@@ -135,11 +132,16 @@ class TelemetryApp:
         self.connect_btn.config(state="normal")
 
     def on_message(self, client, userdata, msg):
-        try:
-            identifier, data = self.decode_twai_message(msg.payload)
+        payload = msg.payload
+        offset = 0
+        while offset < len(payload):
+            try:
+                identifier, data, used = self.decode_twai_message(payload[offset:])
+            except Exception as exc:
+                print(f"Failed to decode frame: {exc}")
+                break
             self.process_can_frame(identifier, data)
-        except Exception as exc:
-            print(f"Failed to decode frame: {exc}")
+            offset += used
 
     # MQTT management ------------------------------------------------------
     def connect(self) -> None:
@@ -201,10 +203,27 @@ class TelemetryApp:
 
     # CAN frame handling ---------------------------------------------------
     def decode_twai_message(self, payload: bytes):
-        if len(payload) < TWAI_STRUCT.size:
+        """Decode one twai_message_t frame from payload.
+
+        Returns a tuple of (identifier, data bytes, used_length).
+        The function supports both 24 byte (padded) and 21 byte frame
+        layouts as well as a minimal variant without timestamp.
+        """
+        if len(payload) >= TWAI_STRUCT_PAD.size:
+            flags, identifier, dlc, data, _ts = TWAI_STRUCT_PAD.unpack_from(payload)
+            used = TWAI_STRUCT_PAD.size
+        elif len(payload) >= TWAI_STRUCT_NOPAD.size:
+            flags, identifier, dlc, data, _ts = TWAI_STRUCT_NOPAD.unpack_from(payload)
+            used = TWAI_STRUCT_NOPAD.size
+        elif len(payload) >= 9:  # Flags(4) + ID(4) + DLC(1)
+            flags, identifier, dlc = struct.unpack_from("<IIB", payload)
+            if len(payload) < 9 + dlc:
+                raise ValueError("payload too short for data")
+            data = payload[9:9 + dlc].ljust(8, b"\x00")
+            used = 9 + dlc
+        else:
             raise ValueError("payload too short")
-        flags, identifier, dlc, data, _timestamp = TWAI_STRUCT.unpack_from(payload)
-        return identifier, data[:dlc]
+        return identifier, data[:dlc], used
 
     def process_can_frame(self, identifier: int, data: bytes) -> None:
         with self.decoder_lock:
