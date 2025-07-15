@@ -228,16 +228,36 @@ void app_main()
         ESP_LOGE("RTOS", "Unable to Create Structure Queue");
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
- 
+
     //=============Define Tasks=================//
-    xTaskCreatePinnedToCore((TaskFunction_t)SDIO_Log_Task_init, "SDIO_Log_Task", 4096, NULL, (UBaseType_t)4, &SDIO_Log_TaskHandler, 0);
-    xTaskCreatePinnedToCore((TaskFunction_t)CAN_Receive_Task_init, "CAN_Receive_Task", 4096, NULL, (UBaseType_t)3, &CAN_Receive_TaskHandler, 0);
-    #if USE_MQTT
-        xTaskCreatePinnedToCore(mqtt_sender_task, "mqtt_sender", 4096, telemetry_queue, 3, NULL, 1);
-    #else
-        xTaskCreatePinnedToCore(udp_sender_task, "udp_sender", 4096, telemetry_queue, 3, NULL, 1);
-    #endif
-        xTaskCreatePinnedToCore(connectivity_monitor_task, "conn_monitor", 4096, NULL, 3, NULL, 1);
+    BaseType_t result_SDIO = xTaskCreatePinnedToCore((TaskFunction_t)SDIO_Log_Task_init, "SDIO_Log_Task", 4096, NULL, (UBaseType_t)4, &SDIO_Log_TaskHandler, 0);
+    BaseType_t result_CAN = xTaskCreatePinnedToCore((TaskFunction_t)CAN_Receive_Task_init, "CAN_Receive_Task", 4096, NULL, (UBaseType_t)3, &CAN_Receive_TaskHandler, 1);
+#if USE_MQTT
+    BaseType_t result_MQT = xTaskCreatePinnedToCore(mqtt_sender_task, "mqtt_sender", 4096, telemetry_queue, 3, NULL, 1);
+#else
+    BaseType_t result_MQT = xTaskCreatePinnedToCore(udp_sender_task, "udp_sender", 4096, telemetry_queue, 3, NULL, 1);
+#endif
+    BaseType_t result_ConMon = xTaskCreatePinnedToCore(connectivity_monitor_task, "conn_monitor", 4096, NULL, 3, NULL, 1);
+
+    if (result_SDIO == pdPASS)
+        ESP_LOGI("SDIO_Log_Task", "Task created successfully");
+    else
+        ESP_LOGE("SDIO_Log_Task", "Task creation failed");
+
+    if (result_CAN == pdPASS)
+        ESP_LOGI("CAN_Receive_Task", "Task created successfully");
+    else
+        ESP_LOGE("CAN_Receive_Task", "Task creation failed");
+
+    if (result_MQT == pdPASS)
+        ESP_LOGI("mqtt_sender", "Task created successfully");
+    else
+        ESP_LOGE("mqtt_sender", "Task creation failed");
+
+    if (result_ConMon == pdPASS)
+        ESP_LOGI("conn_monitor", "Task created successfully");
+    else
+        ESP_LOGE("conn_monitor", "Task creation failed");
 
     while (1)
     {
@@ -254,6 +274,7 @@ void CAN_Receive_Task_init(void *pvParameters) // DONE
     uint32_t alerts = 0;
     twai_status_info_t s;
     ESP_LOGI("CAN_Receive_Task", "CAN IS WORKING");
+    ESP_LOGI("CAN_Receive_Task", "Running on core %d", xPortGetCoreID());
     while (1)
     {
         if (twai_receive(&rx_msg, pdMS_TO_TICKS(1000)) == ESP_OK)
@@ -290,6 +311,8 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! Needs testing
 
     const char *TAG = "SDIO_Log_Task";
     ESP_LOGI(TAG, "SDO_LOG IS WORKING");
+    ESP_LOGI("SDIO_Log_Task", "Running on core %d", xPortGetCoreID());
+    uint8_t prev_reset = 0;
 
     // Assign Zero to all elements of SDIO_buffer and Log initial Line
     EMPTY_SDIO_BUFFER(SDIO_buffer);
@@ -405,33 +428,54 @@ void SDIO_Log_Task_init(void *pvParameters) // WORKS! Needs testing
 
         if (SDIO_SD_Add_Data(&LOG_CSV, &SDIO_buffer) != ESP_OK)
         {
-            esp_err_t ret;
-            SDIO_SD_DeInit();
-            ret = SDIO_SD_Init();
-
-            if (ret != ESP_OK)
+            if (prev_reset < 2)
             {
-                ESP_LOGI(TAG, "ERROR! : %s is not Created // Appedended", LOG_CSV.name);
+                esp_err_t ret;
                 SDIO_SD_DeInit();
+
+                vTaskDelay(pdMS_TO_TICKS(2000));
+
                 ret = SDIO_SD_Init();
-                if (ret == ESP_FAIL)
+
+                if (ret != ESP_OK)
                 {
-                    ESP_LOGE(TAG, "Failed to mount filesystem. "
-                                  "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
+                    prev_reset ++;
+                    ESP_LOGI(TAG, "ERROR! : %s is not Created // Appedended", LOG_CSV.name);
+                    if (ret == ESP_FAIL)
+                    {
+                        ESP_LOGE(TAG, "Failed to mount filesystem. "
+                                      "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
+                    }
+                    else
+                    {
+                        ESP_LOGE(TAG, "Failed to initialize the card (%s). "
+                                      "Make sure SD card lines have pull-up resistors in place.",
+                                 esp_err_to_name(ret));
+                    }
                 }
                 else
                 {
-                    ESP_LOGE(TAG, "Failed to initialize the card (%s). "
-                                  "Make sure SD card lines have pull-up resistors in place.",
-                             esp_err_to_name(ret));
+                    ESP_LOGI(TAG, "Filesystem mounted");
+                    prev_reset = 0;
                 }
+                    
+                
             }
             else
-                ESP_LOGI(TAG, "Filesystem mounted");
+            {
+                SDIO_SD_DeInit();
+                while(1)
+                {
+                    ESP_LOGE(TAG, "SDIO_Logging is Down");
+                    vTaskDelay(pdMS_TO_TICKS(5000));
+                }
+            }
         }
         else
         {
+
             ESP_LOGI(TAG, "Logged CAN message to %s", LOG_CSV.name);
         }
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }

@@ -34,6 +34,9 @@ void connectivity_monitor_task(void *pvParameters)
     EventGroupHandle_t eg = wifi_event_group();
     int fails = 0;
 
+    ESP_LOGI("connectivity_monitor_task", "Running on core %d", xPortGetCoreID());
+
+
     while (1) {
         xEventGroupWaitBits(eg, WIFI_CONNECTED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
         vTaskDelay(pdMS_TO_TICKS(CONNECTIVITY_CHECK_INTERVAL_MS));

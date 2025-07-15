@@ -63,6 +63,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 void mqtt_sender_task(void *pvParameters)
 {
+    ESP_LOGI("mqtt_sender_task", "Running on core %d", xPortGetCoreID());
 #if USE_MQTT
     QueueHandle_t telemetry_queue = (QueueHandle_t)pvParameters;
     EventGroupHandle_t eg = wifi_event_group();
